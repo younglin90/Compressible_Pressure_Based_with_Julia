@@ -8,7 +8,7 @@ include("./pressure.jl")
 include("./volumefraction.jl")
 include("./massfraction.jl")
 include("./energy.jl")
-include("./coupled_fully.jl")
+include("./coupled_flows.jl")
 
 
 using Plots
@@ -16,7 +16,6 @@ using Plots
 using LinearAlgebra
 using SparseArrays
 using IterativeSolvers
-#using AlgebraicMultigrid
 
 using Pardiso
 
@@ -126,16 +125,16 @@ function main()
     Δt = 1.e-2
     =#
     
-    Nx = 100
+    Nx = 51
     Ny = 1
     Nz = 1
     Lx = 1.0
-    Ly = 1.0
+    Ly = 0.1
     Lz = 0.1
     Δt = 1.e-5
 
     realMaxIter = 1000000
-    pseudoMaxIter = 20
+    pseudoMaxIter = 30
     pseudoMaxResidual = -4.0
 
     CFL = 0.5
@@ -175,10 +174,11 @@ function main()
 
     # initialization
 
+    
     #=
-    # dam break
+    p∞ = 0.0
     for cell in cells
-        cell.var[👉.p] = 101325.0
+        cell.var[👉.p] = 101325.0 - p∞
         cell.var[👉.u] = 0.0
         cell.var[👉.v] = 0.0
         cell.var[👉.w] = 0.0
@@ -197,9 +197,7 @@ function main()
 
 
 
-    #=
 
-    # 1D interface advection with constant velocity
     for cell in cells
         cell.var[👉.p] = 101325.0
         cell.var[👉.u] = 1.0
@@ -209,92 +207,16 @@ function main()
         cell.var[👉.Y₁] = 0.0
         cell.var[👉.α₁] = 0.0
 
-        if cell.x < 0.5
-            cell.var[👉.Y₁] = 1.0
-            cell.var[👉.α₁] = 1.0
-        end
-    end
-    =#
-
-    # 1D helium-bubble in air
-    for cell in cells
-
-        if cell.x < 0.3
-            cell.var[👉.p] = 1.245e5
-            cell.var[👉.u] = 55.33
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 319.48
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        else
-            cell.var[👉.p] = 1.e5
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 300.0
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        end
-
-        
-        if 0.5 < cell.x < 0.7
+        if cell.x < 0.1
             cell.var[👉.Y₁] = 1.0
             cell.var[👉.α₁] = 1.0
         end
     end
 
 
-#=
-    # 1D sod shock
-    for cell in cells
 
-        if cell.x < 0.5
-            cell.var[👉.p] = 1.0
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 0.003484
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        else
-            cell.var[👉.p] = 0.1
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 0.002787
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        end
 
-    end
-=#
 
-#=
-
-    # 1D high-pressure water and low-pressure air shock tube
-    for cell in cells
-
-        if cell.x < 0.7
-            cell.var[👉.p] = 1.e9
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 300.0
-            cell.var[👉.Y₁] = 1.0
-            cell.var[👉.α₁] = 1.0
-        else
-            cell.var[👉.p] = 1.e5
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 6.968
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        end
-
-    end
-=#
 
 
 
@@ -308,7 +230,7 @@ function main()
     end
 
     👉.realIter = 1
-    👉.realMaxIter = 1000000
+    👉.realMaxIter = 100000
     while(
         👉.realIter <= 👉.realMaxIter
     )
@@ -326,42 +248,8 @@ function main()
             cell.var[👉.Hₜⁿ] = cell.var[👉.Hₜ]
         end
 
-
-
-        for ii in 1:5
-
-            resi1 =
-            massfraction!(
-                👉,
-                cells,
-                faces,
-                faces_internal,
-                faces_boundary,
-                faces_boundary_top,
-                faces_boundary_bottom,
-                faces_boundary_left,
-                faces_boundary_right
-            )
-
-            println(👉.realIter,", ",👉.pseudoIter,", volumefraction_advection success, ",resi1)
-
-            # EOS
-            EOS!(👉, cells)
-            #EOS_vf!(👉, cells)
-
-            # Transport
-            for cell in cells
-                cell.var[👉.μ] = cell.var[👉.α₁] * 0.001 + cell.var[👉.α₂] * 1.e-5
-            end
-            
-
-        end
-
-
-
-
         👉.pseudoIter = 1
-        #👉.pseudoMaxIter = 25
+        👉.pseudoMaxIter = 50
         while(
             👉.pseudoIter ≤ 👉.pseudoMaxIter
         )
@@ -384,6 +272,27 @@ function main()
             println(👉.realIter,", ",👉.pseudoIter,", coupled equation success, ",totresi)
 
 
+
+            resi1 =
+            volumefraction_advection!(
+                👉,
+                cells,
+                faces,
+                faces_internal,
+                faces_boundary,
+                faces_boundary_top,
+                faces_boundary_bottom,
+                faces_boundary_left,
+                faces_boundary_right
+            )
+    
+            #println(👉.realIter,", ",👉.pseudoIter,", volumefraction_advection success, ",resi1)
+    
+
+
+
+
+
             # EOS
             EOS!(👉, cells)
             #EOS_vf!(👉, cells)
@@ -393,6 +302,11 @@ function main()
                 cell.var[👉.μ] = cell.var[👉.α₁] * 0.001 + cell.var[👉.α₂] * 1.e-5
             end
             
+            # Plotting
+            #plotting1D(Nx, Ny, 👉, cells)
+            #sleep(1.0)
+
+
             # Plotting
             plotting1D(Nx, Ny, 👉, cells)
             #sleep(1.0)
@@ -406,6 +320,27 @@ function main()
 
         
 
+#=
+        resi1 =
+        volumefraction!(
+            👉,
+            cells,
+            faces,
+            faces_internal,
+            faces_boundary,
+            faces_boundary_top,
+            faces_boundary_bottom,
+            faces_boundary_left,
+            faces_boundary_right
+        )
+
+        println(👉.realIter,", ",👉.pseudoIter,", volumefraction_advection success, ",resi1)
+
+
+        # Plotting
+        plotting1D(Nx, Ny, 👉, cells)
+        sleep(1.0)
+=#
 
         👉.realIter += 1
 
@@ -424,4 +359,37 @@ end
 main()
 
 
+
+
+#=
+            resi1 =
+            momentum!(
+                👉,
+                cells,
+                faces,
+                faces_internal,
+                faces_boundary,
+                faces_boundary_top,
+                faces_boundary_bottom,
+                faces_boundary_left,
+                faces_boundary_right
+            )
+
+            println(👉.realIter,", ",👉.pseudoIter,", momentum equation success, ",resi1)
+
+            resi1 =
+            pressure!(
+                👉,
+                cells,
+                faces,
+                faces_internal,
+                faces_boundary,
+                faces_boundary_top,
+                faces_boundary_bottom,
+                faces_boundary_left,
+                faces_boundary_right
+            )
+
+            println(👉.realIter,", ",👉.pseudoIter,", pressure equation success, ",resi1)
+        =#
 

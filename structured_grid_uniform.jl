@@ -189,7 +189,7 @@ function structured_grid_uniform!(
     
 
     for i in cell
-        for j in 1:30
+        for j in 1:31
             push!(i.var,0.0)
         end
     end

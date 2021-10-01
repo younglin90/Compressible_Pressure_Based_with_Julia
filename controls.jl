@@ -52,5 +52,6 @@ mutable struct controls
     Y₂ⁿ::UInt32
     α₁ⁿ::UInt32
     α₂ⁿ::UInt32
+    Hₜⁿ::UInt32
     μ::UInt32
 end
