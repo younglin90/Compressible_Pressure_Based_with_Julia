@@ -34,7 +34,7 @@ function coupled!(
     )
 
     
-    B_n = 4
+    B_n = 5
     A_n = B_n * B_n
 
     A_rows = zeros(Int64, length(cells)*A_n)
@@ -57,15 +57,19 @@ function coupled!(
         ρ = cell.var[👉.ρ]
         Hₜ = cell.var[👉.Hₜ]
         p = cell.var[👉.p]
+        Y₁ = cell.var[👉.Y₁]
         ∂Hₜ∂p = cell.var[👉.∂Hₜ∂p]
         ∂Hₜ∂T = cell.var[👉.∂Hₜ∂T]
         ∂ρ∂p = cell.var[👉.∂ρ∂p]
         ∂ρ∂T = cell.var[👉.∂ρ∂T]
+        ∂ρ∂Y₁ = cell.var[👉.∂ρ∂Y₁]
+        ∂Hₜ∂Y₁ = cell.var[👉.∂Hₜ∂Y₁]
         ρⁿ = cell.var[👉.ρⁿ]
         uⁿ = cell.var[👉.uⁿ]
         vⁿ = cell.var[👉.vⁿ]
         Hₜⁿ = cell.var[👉.Hₜⁿ]
         pⁿ = cell.var[👉.pⁿ]
+        Y₁ⁿ = cell.var[👉.Y₁ⁿ]
 
         #println(pⁿ,uⁿ,vⁿ,Hₜⁿ)
         
@@ -83,6 +87,10 @@ function coupled!(
         i += 1
         A_rows[i] = ijStart + 1;  A_cols[i] = ijStart + 4
         A_vals[i] = ∂ρ∂T*Ω/Δt
+        
+        i += 1
+        A_rows[i] = ijStart + 1;  A_cols[i] = ijStart + 5
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt
 
         B[ijStart + 1] = -(ρ - ρⁿ)*Ω/Δt
 
@@ -101,12 +109,16 @@ function coupled!(
         i += 1
         A_rows[i] = ijStart + 2; A_cols[i] = ijStart + 4
         A_vals[i] = ∂ρ∂T*Ω/Δt * u
+        
+        i += 1
+        A_rows[i] = ijStart + 2; A_cols[i] = ijStart + 5
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * u
 
         B[ijStart + 2] = -(ρ*u - ρⁿ*uⁿ)*cell.Ω/Δt
 
         # y-momentum
-        #g = -9.8
-        g = 0.0
+        g = -9.8
+        #g = 0.0
 
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 1
@@ -122,6 +134,10 @@ function coupled!(
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 4
         A_vals[i] = ∂ρ∂T*Ω/Δt * v + ∂ρ∂T*g*Ω
+        
+        i += 1
+        A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 5
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * v + ∂ρ∂Y₁*g*Ω
 
         B[ijStart + 3] = -(ρ*v - ρⁿ*vⁿ)*Ω/Δt + ρ*g*Ω 
 
@@ -144,7 +160,35 @@ function coupled!(
         A_rows[i] = ijStart + 4; A_cols[i] = ijStart + 4
         A_vals[i] = ∂ρ∂T*Ω/Δt * Hₜ + ∂Hₜ∂T*Ω/Δt * ρ
         
+        i += 1
+        A_rows[i] = ijStart + 4; A_cols[i] = ijStart + 5
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * Hₜ + ∂Hₜ∂Y₁*Ω/Δt * ρ
+        
         B[ijStart + 4] = -(ρ*Hₜ - ρⁿ*Hₜⁿ)*Ω/Δt + (p - pⁿ)*Ω/Δt
+
+
+
+        # mass fraction
+        i += 1
+        A_rows[i] = ijStart + 5; A_cols[i] = ijStart + 1
+        A_vals[i] = ∂ρ∂p*Ω/Δt * Y₁
+
+        i += 1
+        A_rows[i] = ijStart + 5; A_cols[i] = ijStart + 2
+        
+        i += 1
+        A_rows[i] = ijStart + 5; A_cols[i] = ijStart + 3
+        
+        i += 1
+        A_rows[i] = ijStart + 5; A_cols[i] = ijStart + 4
+        A_vals[i] = ∂ρ∂T*Ω/Δt * Y₁ 
+        
+        i += 1
+        A_rows[i] = ijStart + 5; A_cols[i] = ijStart + 5
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * Y₁ + Ω/Δt * ρ
+        
+        B[ijStart + 5] = -(ρ*Y₁ - ρⁿ*Y₁ⁿ)*Ω/Δt
+
 
 
         diagon += 1
@@ -258,12 +302,12 @@ function coupled!(
         ∂Hₜ∂pᵣ = cells[face.neighbour].var[👉.∂Hₜ∂p]
         ∂Hₜ∂Tₗ = cells[face.owner].var[👉.∂Hₜ∂T]
         ∂Hₜ∂Tᵣ = cells[face.neighbour].var[👉.∂Hₜ∂T]
-        #Y₁ₗ = cells[face.owner].var[👉.Y₁]
-        #Y₁ᵣ = cells[face.neighbour].var[👉.Y₁]
-        #∂ρ∂Y₁ₗ = cells[face.owner].var[👉.∂ρ∂Y₁]
-        #∂ρ∂Y₁ᵣ = cells[face.neighbour].var[👉.∂ρ∂Y₁]
-        #∂Hₜ∂Y₁ₗ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
-        #∂Hₜ∂Y₁ᵣ = cells[face.neighbour].var[👉.∂Hₜ∂Y₁]
+        Y₁ₗ = cells[face.owner].var[👉.Y₁]
+        Y₁ᵣ = cells[face.neighbour].var[👉.Y₁]
+        ∂ρ∂Y₁ₗ = cells[face.owner].var[👉.∂ρ∂Y₁]
+        ∂ρ∂Y₁ᵣ = cells[face.neighbour].var[👉.∂ρ∂Y₁]
+        ∂Hₜ∂Y₁ₗ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
+        ∂Hₜ∂Y₁ᵣ = cells[face.neighbour].var[👉.∂Hₜ∂Y₁]
 
         Uₙₗ = uₗ * face.n̂[1] + vₗ * face.n̂[2]
         Uₙᵣ = uᵣ * face.n̂[1] + vᵣ * face.n̂[2]
@@ -297,6 +341,7 @@ function coupled!(
         vₙ = Wₗ * vₗ + Wᵣ * vᵣ
         wₙ = 0.0#Wₗ * wₗ + Wᵣ * wᵣ
         Hₜₙ = Wₗ * Hₜₗ + Wᵣ * Hₜᵣ
+        Y₁ₙ = Wₗ * Y₁ₗ + Wᵣ * Y₁ᵣ
 
         pₙ = 0.5 * (pₗ + pᵣ)
 
@@ -407,6 +452,21 @@ function coupled!(
         push!(A_rows, ijStartᵣ + 1); push!(A_cols, ijStartₗ + 4)
         push!(A_vals, -( Wₗ * ∂ρ∂Tₗ_ACID * Uₙ * ΔS ))
         
+        # Y₁'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        Hₜₙ = (Wₗ * Hₜₗ + Wᵣ * Hₜᵣ_ACID)
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂Y₁ₗ * Uₙ * ΔS )
+        push!(A_rows, ijStartₗ + 1); push!(A_cols, ijStartᵣ + 5)
+        push!(A_vals, ( Wᵣ * ∂ρ∂Y₁ᵣ * Uₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        Hₜₙ = (Wₗ * Hₜₗ_ACID + Wᵣ * Hₜᵣ)
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂Y₁ᵣ * Uₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 1); push!(A_cols, ijStartₗ + 5)
+        push!(A_vals, -( Wₗ * ∂ρ∂Y₁ₗ * Uₙ * ΔS ))
+        
 
 
         
@@ -474,6 +534,21 @@ function coupled!(
         push!(A_rows, ijStartᵣ + 2); push!(A_cols, ijStartₗ + 4)
         push!(A_vals, -( Wₗ * ∂ρ∂Tₗ_ACID * uₙ * Uₙ * ΔS ))
 
+        # Y₁'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        Hₜₙ = (Wₗ * Hₜₗ + Wᵣ * Hₜᵣ_ACID)
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂Y₁ₗ * uₙ * Uₙ * ΔS )
+        push!(A_rows, ijStartₗ + 2); push!(A_cols, ijStartᵣ + 5)
+        push!(A_vals, ( Wᵣ * ∂ρ∂Y₁ᵣ * uₙ * Uₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        Hₜₙ = (Wₗ * Hₜₗ_ACID + Wᵣ * Hₜᵣ)
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂Y₁ᵣ * uₙ * Uₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 2); push!(A_cols, ijStartₗ + 5)
+        push!(A_vals, -( Wₗ * ∂ρ∂Y₁ₗ * uₙ * Uₙ * ΔS ))
+
 
         
 
@@ -540,6 +615,21 @@ function coupled!(
         push!(A_rows, ijStartᵣ + 3); push!(A_cols, ijStartₗ + 4)
         push!(A_vals, -(  Wₗ * ∂ρ∂Tₗ_ACID * vₙ * Uₙ *ΔS ))
 
+        # Y₁'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        Hₜₙ = (Wₗ * Hₜₗ + Wᵣ * Hₜᵣ_ACID)
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂Y₁ₗ * vₙ * Uₙ *ΔS )
+        push!(A_rows, ijStartₗ + 3); push!(A_cols, ijStartᵣ + 5)
+        push!(A_vals, ( Wᵣ * ∂ρ∂Y₁ᵣ * vₙ * Uₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        Hₜₙ = (Wₗ * Hₜₗ_ACID + Wᵣ * Hₜᵣ)
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂Y₁ᵣ * vₙ * Uₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 3); push!(A_cols, ijStartₗ + 5)
+        push!(A_vals, -(  Wₗ * ∂ρ∂Y₁ₗ * vₙ * Uₙ *ΔS ))
+
 
         
 
@@ -605,8 +695,97 @@ function coupled!(
         A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂Tᵣ * Hₜᵣ * Uₙ * ΔS + ρₙ * Wᵣ * ∂Hₜ∂Tᵣ * Uₙ * ΔS )
         push!(A_rows, ijStartᵣ + 4); push!(A_cols, ijStartₗ + 4)
         push!(A_vals, -( Wₗ * ∂ρ∂Tₗ_ACID * Hₜₗ_ACID * Uₙ * ΔS + ρₙ * Wₗ * ∂Hₜ∂Tₗ_ACID * Uₙ * ΔS ))
+
+        
+        # Y₁'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        Hₜₙ = (Wₗ * Hₜₗ + Wᵣ * Hₜᵣ_ACID)
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂Y₁ₗ * Hₜₗ * Uₙ * ΔS + ρₙ * Wₗ * ∂Hₜ∂Y₁ₗ * Uₙ * ΔS )
+        push!(A_rows, ijStartₗ + 4); push!(A_cols, ijStartᵣ + 5)
+        push!(A_vals, ( Wᵣ * ∂ρ∂Y₁ᵣ * Hₜᵣ_ACID * Uₙ * ΔS + ρₙ * Wᵣ * ∂Hₜ∂Y₁ᵣ * Uₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        Hₜₙ = (Wₗ * Hₜₗ_ACID + Wᵣ * Hₜᵣ)
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂Y₁ᵣ * Hₜᵣ * Uₙ * ΔS + ρₙ * Wᵣ * ∂Hₜ∂Y₁ᵣ * Uₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 4); push!(A_cols, ijStartₗ + 5)
+        push!(A_vals, -( Wₗ * ∂ρ∂Y₁ₗ * Hₜₗ_ACID * Uₙ * ΔS + ρₙ * Wₗ * ∂Hₜ∂Y₁ₗ * Uₙ * ΔS ))
         
 
+        
+
+        #------------------------
+        # mass fraction
+        # p'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂pₗ * Y₁ₙ * Uₙ * ΔS )
+        push!(A_rows, ijStartₗ + 5); push!(A_cols, ijStartᵣ + 1)
+        push!(A_vals, ( Wᵣ * ∂ρ∂pᵣ_ACID * Y₁ₙ * Uₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂pᵣ * Y₁ₙ * Uₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 5); push!(A_cols, ijStartₗ + 1)
+        push!(A_vals, -( Wₗ * ∂ρ∂pₗ_ACID * Y₁ₙ * Uₙ * ΔS ))
+        
+        # u'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        A_vals[iₗ] += ( ρₙ * 0.5 * face.n̂[1] * Y₁ₙ * ΔS )
+        push!(A_rows, ijStartₗ + 5); push!(A_cols, ijStartᵣ + 2)
+        push!(A_vals, ( ρₙ * 0.5 * face.n̂[1] * Y₁ₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        A_vals[iᵣ] -= ( ρₙ * 0.5 * face.n̂[1] * Y₁ₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 5); push!(A_cols, ijStartₗ + 2)
+        push!(A_vals, -( ρₙ * 0.5 * face.n̂[1] * Y₁ₙ * ΔS ))
+
+        # v'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        A_vals[iₗ] += ( ρₙ * 0.5 * face.n̂[2] * Y₁ₙ * ΔS )
+        push!(A_rows, ijStartₗ + 5); push!(A_cols, ijStartᵣ + 3)
+        push!(A_vals, ( ρₙ * 0.5 * face.n̂[2] * Y₁ₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        A_vals[iᵣ] -= ( ρₙ * 0.5 * face.n̂[2] * Y₁ₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 5); push!(A_cols, ijStartₗ + 3)
+        push!(A_vals, -( ρₙ * 0.5 * face.n̂[2] * Y₁ₙ * ΔS ))
+
+        
+        # T'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂Tₗ * Y₁ₙ * Uₙ * ΔS )
+        push!(A_rows, ijStartₗ + 5); push!(A_cols, ijStartᵣ + 4)
+        push!(A_vals, ( Wᵣ * ∂ρ∂Tᵣ_ACID * Y₁ₙ * Uₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂Tᵣ * Y₁ₙ * Uₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 5); push!(A_cols, ijStartₗ + 4)
+        push!(A_vals, -( Wₗ * ∂ρ∂Tₗ_ACID * Y₁ₙ * Uₙ * ΔS ))
+
+        
+        # Y₁'
+        iₗ += 1; iᵣ += 1
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂Y₁ₗ * Y₁ₙ * Uₙ * ΔS + ρₙ * Wₗ * Uₙ * ΔS )
+        push!(A_rows, ijStartₗ + 5); push!(A_cols, ijStartᵣ + 5)
+        push!(A_vals, ( Wᵣ * ∂ρ∂Y₁ᵣ * Y₁ₙ * Uₙ * ΔS + ρₙ * Wᵣ * Uₙ * ΔS ))
+        
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂Y₁ᵣ * Y₁ₙ * Uₙ * ΔS + ρₙ * Wᵣ * Uₙ * ΔS )
+        push!(A_rows, ijStartᵣ + 5); push!(A_cols, ijStartₗ + 5)
+        push!(A_vals, -( Wₗ * ∂ρ∂Y₁ₗ * Y₁ₙ * Uₙ * ΔS + ρₙ * Wₗ * Uₙ * ΔS ))
+        
+
+        # ----------------------------
 
         # B
 
@@ -640,6 +819,12 @@ function coupled!(
         ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
         Hₜₙ = (Wₗ * Hₜₗ_ACID + Wᵣ * Hₜᵣ)
         B[ijStartᵣ + 4] += ( ρₙ * Hₜₙ * Uₙ * ΔS )
+        # B
+
+        ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
+        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
+        ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
+        B[ijStartᵣ + 5] += ( ρₙ * Y₁ₙ * Uₙ * ΔS )
 
 
 
@@ -651,18 +836,18 @@ function coupled!(
     # boundary faces
     #boundary = append(faces_boundary_top , faces_boundary_bottom , faces_boundary_left , faces_boundary_right )
     bc_wall = []
+    append!( bc_wall, faces_boundary_top )
+    append!( bc_wall, faces_boundary_bottom )
+    append!( bc_wall, faces_boundary_left )
+    append!( bc_wall, faces_boundary_right )
 
     bc_slipwall = []
-    append!( bc_slipwall, faces_boundary_top )
-    append!( bc_slipwall, faces_boundary_bottom )
     
     bc_subinlet = []
     
     bc_suboutlet = []
     
     bc_supoutlet = []
-    append!( bc_supoutlet, faces_boundary_left )
-    append!( bc_supoutlet, faces_boundary_right )
 
     for face in bc_wall
         
@@ -675,8 +860,11 @@ function coupled!(
         ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
         ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
         ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
+        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
+        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
         pₙ = cells[face.owner].var[👉.p]
         Hₜₙ = cells[face.owner].var[👉.Hₜ]
+        Y₁ₙ = cells[face.owner].var[👉.Y₁]
 
         ΔS = face.ΔS
 
@@ -699,6 +887,8 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
 
         
         # x-momentum
@@ -710,6 +900,8 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
 
         
         # y-momentum
@@ -721,6 +913,8 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
 
 
         # energy
@@ -732,11 +926,28 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
+
+
+        # massfraction
+        i += 1
+        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
+        i += 1
+        A_vals[i] += 0.0
+        i += 1
+        A_vals[i] += 0.0
+        i += 1
+        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
+
 
         B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
         B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
         B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
         B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
+        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
         
 
     end
@@ -753,8 +964,11 @@ function coupled!(
         ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
         ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
         ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
+        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
+        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
         pₙ = cells[face.owner].var[👉.p]
         Hₜₙ = cells[face.owner].var[👉.Hₜ]
+        Y₁ₙ = cells[face.owner].var[👉.Y₁]
 
         ΔS = face.ΔS
 
@@ -784,6 +998,8 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
 
         
         # x-momentum
@@ -795,6 +1011,8 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
 
         
         # y-momentum
@@ -806,6 +1024,8 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
 
 
         # energy
@@ -817,11 +1037,29 @@ function coupled!(
         A_vals[i] += 0.0
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
+
+
+        # massfraction
+        i += 1
+        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
+        i += 1
+        A_vals[i] += 0.0
+        i += 1
+        A_vals[i] += 0.0
+        i += 1
+        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
+
+
 
         B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
         B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
         B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
         B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
+        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
         
 
     end
@@ -837,8 +1075,11 @@ function coupled!(
         ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
         ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
         ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
+        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
+        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
         pₙ = cells[face.owner].var[👉.p]
         Hₜₙ = cells[face.owner].var[👉.Hₜ]
+        Y₁ₙ = cells[face.owner].var[👉.Y₁]
 
         ΔS = face.ΔS
 
@@ -850,11 +1091,11 @@ function coupled!(
 
         Tₙ = 300.0
         #Tₙ = 0.5 * ( 300.0 + cells[face.owner].var[👉.T] )
-        α₁ₙ = 1.0
+        Y₁ₙ = 1.0
         
         #pₙ = 101325.0
 
-        ρₙ, Hₜₙ, cₙ = faceEOS!(pₙ,uₙ,vₙ,wₙ,Tₙ,α₁ₙ)
+        ρₙ, Hₜₙ, cₙ = faceEOS!(pₙ,uₙ,vₙ,wₙ,Tₙ,Y₁ₙ)
 
         centerₗ = [cells[face.owner].x, cells[face.owner].y, cells[face.owner].z]
         centerᵣ = [face.x, face.y, face.z]
@@ -869,6 +1110,8 @@ function coupled!(
         A_vals[i] += 0.0#0.5 * (ρₙ * face.n̂[2] * ΔS)
         i += 1
         A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * ΔS)
 
         
         # x-momentum
@@ -878,6 +1121,8 @@ function coupled!(
         A_vals[i] += 0.0#0.5 * (ρₙ * Uₙ * ΔS + ρₙ * uₙ * face.n̂[1] * ΔS)
         i += 1
         A_vals[i] += 0.0#0.5 * (ρₙ * uₙ * face.n̂[2] * ΔS)
+        i += 1
+        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * uₙ * Uₙ * ΔS)
         i += 1
         A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * uₙ * Uₙ * ΔS)
 
@@ -891,6 +1136,8 @@ function coupled!(
         A_vals[i] += 0.0#0.5 * (ρₙ * Uₙ * ΔS + ρₙ * vₙ * face.n̂[2] * ΔS)
         i += 1
         A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * vₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * vₙ * Uₙ * ΔS)
 
 
         # energy
@@ -902,12 +1149,28 @@ function coupled!(
         A_vals[i] += 0.0#0.5 * (ρₙ * face.n̂[2] * Hₜₙ * ΔS + ρₙ * Uₙ * vₙ * ΔS)
         i += 1
         A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS)
+        i += 1
+        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS)
+
+
+        # massfraction
+        i += 1
+        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
+        i += 1
+        A_vals[i] += 0.0#
+        i += 1
+        A_vals[i] += 0.0#ρₙ * face.n̂[2] * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += 0.0#∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += 0.0#∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
 
 
         B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
         B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
         B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
         B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
+        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
         
 
     end
@@ -923,8 +1186,11 @@ function coupled!(
         ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
         ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
         ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
+        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
+        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
         pₙ = cells[face.owner].var[👉.p]
         Hₜₙ = cells[face.owner].var[👉.Hₜ]
+        Y₁ₙ = cells[face.owner].var[👉.Y₁]
 
         ΔS = face.ΔS
 
@@ -953,6 +1219,8 @@ function coupled!(
         A_vals[i] += ρₙ * face.n̂[2] * ΔS
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
 
         
         # x-momentum
@@ -964,6 +1232,8 @@ function coupled!(
         A_vals[i] += ρₙ * uₙ * face.n̂[2] * ΔS
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
 
         
         # y-momentum
@@ -975,6 +1245,8 @@ function coupled!(
         A_vals[i] += (ρₙ * Uₙ * ΔS + ρₙ * vₙ * face.n̂[2] * ΔS)
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
 
 
         # energy
@@ -986,11 +1258,27 @@ function coupled!(
         A_vals[i] += ρₙ * face.n̂[2] * Hₜₙ * ΔS + ρₙ * Uₙ * vₙ * ΔS
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
+
+
+        # massfraction
+        i += 1
+        A_vals[i] += 0.0
+        i += 1
+        A_vals[i] += ρₙ * face.n̂[1] * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ρₙ * face.n̂[2] * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
 
         B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
         B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
         B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
         B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
+        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
         
 
     end
@@ -1008,8 +1296,11 @@ function coupled!(
         ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
         ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
         ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
+        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
+        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
         pₙ = cells[face.owner].var[👉.p]
         Hₜₙ = cells[face.owner].var[👉.Hₜ]
+        Y₁ₙ = cells[face.owner].var[👉.Y₁]
 
         ΔS = face.ΔS
 
@@ -1036,6 +1327,8 @@ function coupled!(
         A_vals[i] += ρₙ * face.n̂[2] * ΔS
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
 
         
         # x-momentum
@@ -1047,6 +1340,8 @@ function coupled!(
         A_vals[i] += ρₙ * uₙ * face.n̂[2] * ΔS
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
 
         
         # y-momentum
@@ -1058,6 +1353,8 @@ function coupled!(
         A_vals[i] += (ρₙ * Uₙ * ΔS + ρₙ * vₙ * face.n̂[2] * ΔS)
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
 
 
         # energy
@@ -1069,11 +1366,28 @@ function coupled!(
         A_vals[i] += ρₙ * face.n̂[2] * Hₜₙ * ΔS + ρₙ * Uₙ * vₙ * ΔS
         i += 1
         A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
+
+
+        # massfraction
+        i += 1
+        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
+        i += 1
+        A_vals[i] += ρₙ * face.n̂[1] * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ρₙ * face.n̂[2] * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
+        i += 1
+        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
+
 
         B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
         B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
         B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
         B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
+        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
         
 
     end
@@ -1106,6 +1420,7 @@ function coupled!(
     relax_p = 0.9
     relax_U = 0.9
     relax_T = 0.9
+    relax_Y = 0.9
 
 
     diagon = 1
@@ -1127,6 +1442,7 @@ function coupled!(
         cell.var[👉.u] += relax_U * ΔQ[ijStart + 2]
         cell.var[👉.v] += relax_U * ΔQ[ijStart + 3]
         cell.var[👉.T] += relax_T * ΔQ[ijStart + 4]
+        cell.var[👉.Y₁] += relax_Y * ΔQ[ijStart + 5]
 
         cell.var[👉.p] = max(cell.var[👉.p],1.e-200)
         cell.var[👉.T] = max(cell.var[👉.T],1.e-200)

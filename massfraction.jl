@@ -142,10 +142,12 @@ function massfraction!(
     # boundary faces
     #boundary = append(faces_boundary_top , faces_boundary_bottom , faces_boundary_left , faces_boundary_right )
     bc_wall = []
+    append!( bc_wall, faces_boundary_top )
+    append!( bc_wall, faces_boundary_bottom )
+    append!( bc_wall, faces_boundary_left )
+    append!( bc_wall, faces_boundary_right )
 
     bc_slipwall = []
-    append!( bc_slipwall, faces_boundary_top )
-    append!( bc_slipwall, faces_boundary_bottom )
     
     bc_subinlet = []
     #append!( bc_subinlet, faces_boundary_left )
@@ -154,8 +156,6 @@ function massfraction!(
     #append!( bc_supoutlet, faces_boundary_right )
     
     bc_supoutlet = []
-    append!( bc_supoutlet, faces_boundary_left )
-    append!( bc_supoutlet, faces_boundary_right )
     
     for face in bc_wall
         ΔS = face.ΔS

@@ -126,16 +126,16 @@ function main()
     Δt = 1.e-2
     =#
     
-    Nx = 100
-    Ny = 1
+    Nx = 50
+    Ny = 50
     Nz = 1
     Lx = 1.0
     Ly = 1.0
     Lz = 0.1
-    Δt = 1.e-5
+    Δt = 1.e-4
 
     realMaxIter = 1000000
-    pseudoMaxIter = 20
+    pseudoMaxIter = 3
     pseudoMaxResidual = -4.0
 
     CFL = 0.5
@@ -175,7 +175,6 @@ function main()
 
     # initialization
 
-    #=
     # dam break
     for cell in cells
         cell.var[👉.p] = 101325.0
@@ -191,7 +190,6 @@ function main()
             cell.var[👉.α₁] = 1.0
         end
     end
-    =#
 
 
 
@@ -216,6 +214,7 @@ function main()
     end
     =#
 
+    #=
     # 1D helium-bubble in air
     for cell in cells
 
@@ -243,7 +242,7 @@ function main()
             cell.var[👉.α₁] = 1.0
         end
     end
-
+=#
 
 #=
     # 1D sod shock
@@ -313,6 +312,17 @@ function main()
         👉.realIter <= 👉.realMaxIter
     )
 
+        if 👉.realIter < 10 
+            👉.Δt = 5.e-4
+        elseif 👉.realIter < 30
+            👉.Δt = 3.e-3
+        else
+            👉.Δt = 3.e-3
+        end
+            
+
+    
+        println("real-time Step: $(👉.realIter) \t Time: $(👉.time)")
 
         # save n-step values
         for cell in cells
@@ -394,7 +404,7 @@ function main()
             end
             
             # Plotting
-            plotting1D(Nx, Ny, 👉, cells)
+            plotting2D(Nx, Ny, 👉, cells)
             #sleep(1.0)
 
 
@@ -405,7 +415,7 @@ function main()
         end
 
         
-
+        👉.time += 👉.Δt
 
         👉.realIter += 1
 
