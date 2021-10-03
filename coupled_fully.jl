@@ -122,7 +122,7 @@ function coupled!(
 
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 1
-        A_vals[i] = ∂ρ∂p*Ω/Δt * v + ∂ρ∂p*g*Ω
+        A_vals[i] = ∂ρ∂p*Ω/Δt * v - ∂ρ∂p*g*Ω
         
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 2
@@ -133,11 +133,11 @@ function coupled!(
 
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 4
-        A_vals[i] = ∂ρ∂T*Ω/Δt * v + ∂ρ∂T*g*Ω
+        A_vals[i] = ∂ρ∂T*Ω/Δt * v - ∂ρ∂T*g*Ω
         
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 5
-        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * v + ∂ρ∂Y₁*g*Ω
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * v - ∂ρ∂Y₁*g*Ω
 
         B[ijStart + 3] = -(ρ*v - ρⁿ*vⁿ)*Ω/Δt + ρ*g*Ω 
 
@@ -721,14 +721,14 @@ function coupled!(
         iₗ += 1; iᵣ += 1
 
         ρₙ = (Wₗ*ρₗ + Wᵣ*ρᵣ_ACID)
-        A_vals[iₗ] += ( Wₗ * ∂ρ∂pₗ * Y₁ₙ * Uₙ * ΔS )
+        A_vals[iₗ] += ( Wₗ * ∂ρ∂pₗ * Y₁ₙ * Uₙ * ΔS + ρₙ * d̂ / ΔLR * Y₁ₙ * ΔS )
         push!(A_rows, ijStartₗ + 5); push!(A_cols, ijStartᵣ + 1)
-        push!(A_vals, ( Wᵣ * ∂ρ∂pᵣ_ACID * Y₁ₙ * Uₙ * ΔS ))
+        push!(A_vals, ( Wᵣ * ∂ρ∂pᵣ_ACID * Y₁ₙ * Uₙ * ΔS - ρₙ * d̂ / ΔLR * Y₁ₙ * ΔS ))
         
         ρₙ = (Wₗ*ρₗ_ACID + Wᵣ*ρᵣ)
-        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂pᵣ * Y₁ₙ * Uₙ * ΔS )
+        A_vals[iᵣ] -= ( Wᵣ * ∂ρ∂pᵣ * Y₁ₙ * Uₙ * ΔS - ρₙ * d̂ / ΔLR * Y₁ₙ * ΔS )
         push!(A_rows, ijStartᵣ + 5); push!(A_cols, ijStartₗ + 1)
-        push!(A_vals, -( Wₗ * ∂ρ∂pₗ_ACID * Y₁ₙ * Uₙ * ΔS ))
+        push!(A_vals, -( Wₗ * ∂ρ∂pₗ_ACID * Y₁ₙ * Uₙ * ΔS + ρₙ * d̂ / ΔLR * Y₁ₙ * ΔS ))
         
         # u'
         iₗ += 1; iᵣ += 1
