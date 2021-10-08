@@ -41,7 +41,11 @@ function massfraction!(
         A_vals[diagon] = ρ*Ω/Δt
         A_vals[diagon] += ∂ρ∂Y₁*Y₁*Ω/Δt
 
-        B[diagon] = -(ρ*Y₁ - ρⁿ*Y₁ⁿ)*Ω/Δt
+        if 👉.temporal_discretizationScheme == "1st"
+            B[diagon] = -(ρ*Y₁ - ρⁿ*Y₁ⁿ)*Ω/Δt
+        elseif 👉.temporal_discretizationScheme == "2nd"
+            B[diagon] = -(1.5*ρ*Y₁ - 2.0*ρⁿ*Y₁ⁿ + 0.5*ρⁿ⁻¹*Y₁ⁿ⁻¹)*Ω/Δt
+        end
 
         diagon += 1
 
@@ -109,8 +113,15 @@ function massfraction!(
         =#
         Uₙ -= invρΔt * (pᵣ-pₗ) / ΔLR
 
-        Wₗ = 0.5 * (1.0 + sign(Uₙ))
-        Wᵣ = 1.0 - Wₗ
+        Wₗ = 0.0
+        Wᵣ = 0.0
+        if 👉.spatial_discretizationScheme == "upwind"
+            Wₗ = 0.5 * (1.0 + sign(Uₙ))
+            Wᵣ = 1.0 - Wₗ
+        elseif 👉.spatial_discretizationScheme == "central"
+            Wₗ = 0.5
+            Wᵣ = 1.0 - Wₗ
+        end
         
         ρₙ = Wₗ * ρₗ + Wᵣ * ρᵣ
         uₙ = Wₗ * uₗ + Wᵣ * uᵣ

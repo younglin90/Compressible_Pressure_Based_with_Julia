@@ -70,6 +70,12 @@ function coupled!(
         Hₜⁿ = cell.var[👉.Hₜⁿ]
         pⁿ = cell.var[👉.pⁿ]
         Y₁ⁿ = cell.var[👉.Y₁ⁿ]
+        ρⁿ⁻¹ = cell.var[👉.ρⁿ⁻¹]
+        uⁿ⁻¹ = cell.var[👉.uⁿ⁻¹]
+        vⁿ⁻¹ = cell.var[👉.vⁿ⁻¹]
+        Hₜⁿ⁻¹ = cell.var[👉.Hₜⁿ⁻¹]
+        pⁿ⁻¹ = cell.var[👉.pⁿ⁻¹]
+        Y₁ⁿ⁻¹ = cell.var[👉.Y₁ⁿ⁻¹]
 
         #println(pⁿ,uⁿ,vⁿ,Hₜⁿ)
         
@@ -92,12 +98,10 @@ function coupled!(
         A_rows[i] = ijStart + 1;  A_cols[i] = ijStart + 5
         A_vals[i] = ∂ρ∂Y₁*Ω/Δt
 
-        B[ijStart + 1] = -(ρ - ρⁿ)*Ω/Δt
-
         # x-momentum
         i += 1
         A_rows[i] = ijStart + 2; A_cols[i] = ijStart + 1
-        A_vals[i] = ∂ρ∂p*Ω/Δt * u
+        A_vals[i] = ∂ρ∂p*Ω/Δt * u - ∂ρ∂p*👉.gravity[1]*Ω
 
         i += 1
         A_rows[i] = ijStart + 2; A_cols[i] = ijStart + 2
@@ -108,21 +112,20 @@ function coupled!(
 
         i += 1
         A_rows[i] = ijStart + 2; A_cols[i] = ijStart + 4
-        A_vals[i] = ∂ρ∂T*Ω/Δt * u
+        A_vals[i] = ∂ρ∂T*Ω/Δt * u - ∂ρ∂T*👉.gravity[1]*Ω
         
         i += 1
         A_rows[i] = ijStart + 2; A_cols[i] = ijStart + 5
-        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * u
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * u - ∂ρ∂Y₁*👉.gravity[1]*Ω
 
-        B[ijStart + 2] = -(ρ*u - ρⁿ*uⁿ)*cell.Ω/Δt
 
         # y-momentum
-        g = -9.8
+        #g = -9.8
         #g = 0.0
 
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 1
-        A_vals[i] = ∂ρ∂p*Ω/Δt * v - ∂ρ∂p*g*Ω
+        A_vals[i] = ∂ρ∂p*Ω/Δt * v - ∂ρ∂p*👉.gravity[2]*Ω
         
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 2
@@ -133,13 +136,12 @@ function coupled!(
 
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 4
-        A_vals[i] = ∂ρ∂T*Ω/Δt * v - ∂ρ∂T*g*Ω
+        A_vals[i] = ∂ρ∂T*Ω/Δt * v - ∂ρ∂T*👉.gravity[2]*Ω
         
         i += 1
         A_rows[i] = ijStart + 3; A_cols[i] = ijStart + 5
-        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * v - ∂ρ∂Y₁*g*Ω
+        A_vals[i] = ∂ρ∂Y₁*Ω/Δt * v - ∂ρ∂Y₁*👉.gravity[2]*Ω
 
-        B[ijStart + 3] = -(ρ*v - ρⁿ*vⁿ)*Ω/Δt + ρ*g*Ω 
 
 
 
@@ -163,8 +165,6 @@ function coupled!(
         i += 1
         A_rows[i] = ijStart + 4; A_cols[i] = ijStart + 5
         A_vals[i] = ∂ρ∂Y₁*Ω/Δt * Hₜ + ∂Hₜ∂Y₁*Ω/Δt * ρ
-        
-        B[ijStart + 4] = -(ρ*Hₜ - ρⁿ*Hₜⁿ)*Ω/Δt + (p - pⁿ)*Ω/Δt
 
 
 
@@ -187,7 +187,22 @@ function coupled!(
         A_rows[i] = ijStart + 5; A_cols[i] = ijStart + 5
         A_vals[i] = ∂ρ∂Y₁*Ω/Δt * Y₁ + Ω/Δt * ρ
         
-        B[ijStart + 5] = -(ρ*Y₁ - ρⁿ*Y₁ⁿ)*Ω/Δt
+        
+
+        # B
+        if 👉.temporal_discretizationScheme == "1st"
+            B[ijStart + 1] = -(ρ - ρⁿ)*Ω/Δt
+            B[ijStart + 2] = -(ρ*u - ρⁿ*uⁿ)*Ω/Δt + ρ*👉.gravity[1]*Ω 
+            B[ijStart + 3] = -(ρ*v - ρⁿ*vⁿ)*Ω/Δt + ρ*👉.gravity[2]*Ω 
+            B[ijStart + 4] = -(ρ*Hₜ - ρⁿ*Hₜⁿ)*Ω/Δt + (p - pⁿ)*Ω/Δt
+            B[ijStart + 5] = -(ρ*Y₁ - ρⁿ*Y₁ⁿ)*Ω/Δt
+        elseif 👉.temporal_discretizationScheme == "2nd"
+            B[ijStart + 1] = -(1.5*ρ - 2.0*ρⁿ + 0.5*ρⁿ⁻¹)*Ω/Δt
+            B[ijStart + 2] = -(1.5*ρ*u - 2.0*ρⁿ*uⁿ + 0.5*ρⁿ⁻¹*uⁿ⁻¹)*Ω/Δt + ρ*👉.gravity[1]*Ω 
+            B[ijStart + 3] = -(1.5*ρ*v - 2.0*ρⁿ*vⁿ + 0.5*ρⁿ⁻¹*vⁿ⁻¹)*Ω/Δt + ρ*👉.gravity[2]*Ω 
+            B[ijStart + 4] = -(1.5*ρ*Hₜ - 2.0*ρⁿ*Hₜⁿ + 0.5*ρⁿ⁻¹*Hₜⁿ⁻¹)*Ω/Δt + (1.5*p - 2.0*pⁿ + 0.5*pⁿ⁻¹)*Ω/Δt
+            B[ijStart + 5] = -(1.5*ρ*Y₁ - 2.0*ρⁿ*Y₁ⁿ + 0.5*ρⁿ⁻¹*Y₁ⁿ⁻¹)*Ω/Δt
+        end
 
 
 
@@ -218,6 +233,8 @@ function coupled!(
 
 
 
+
+
     
     Ap = zeros(Float64, length(cells))
     for face in faces_internal
@@ -243,8 +260,15 @@ function coupled!(
         ρˢ = 1.0 / (0.5/ρₗ + 0.5/ρᵣ)
         d̂ = 👉.Δt / ρˢ
         
-        Wₗ = 0.5 * (1.0 + sign(Uₙ))
-        Wᵣ = 1.0 - Wₗ
+        Wₗ = 0.0
+        Wᵣ = 0.0
+        if 👉.spatial_discretizationScheme == "upwind"
+            Wₗ = 0.5 * (1.0 + sign(Uₙ))
+            Wᵣ = 1.0 - Wₗ
+        elseif 👉.spatial_discretizationScheme == "central"
+            Wₗ = 0.5
+            Wᵣ = 1.0 - Wₗ
+        end
 
         ρₙ = Wₗ * ρₗ + Wᵣ * ρᵣ
         
@@ -260,17 +284,47 @@ function coupled!(
         =#
 
         flux = ρₙ * Uₙ * face.ΔS
-        Ap[face.owner] += flux
-        Ap[face.neighbour] -= flux
+        Ap[face.owner] += Wₗ * flux / cells[face.owner].Ω
+        Ap[face.neighbour] -= Wᵣ * flux / cells[face.neighbour].Ω
     end
 
-    for face in faces_boundary
-        #pₙ = cells[face.owner].var[👉.p]
-        #Ap[face.owner, 1] += pₙ * face.n̂[1] * face.ΔS / cells[face.owner].Ω
-        #Ap[face.owner, 2] += pₙ * face.n̂[2] * face.ΔS / cells[face.owner].Ω
-        #Ap[face.owner, 3] += pₙ * face.n̂[3] * face.ΔS / cells[face.owner].Ω
-    end
+    coupled_Ap_boundary!(
+    👉,cells,faces,
+    faces_boundary_top, 
+    👉.top_p_BCtype, 👉.top_p_BCValue, 
+    👉.top_u_BCtype, 👉.top_u_BCValue, 
+    👉.top_v_BCtype, 👉.top_v_BCValue, 
+    👉.top_T_BCtype, 👉.top_T_BCValue, 
+    👉.top_Y_BCtype, 👉.top_Y_BCValue,
+    Ap)
 
+    coupled_Ap_boundary!(👉,cells,faces,
+    faces_boundary_bottom, 
+    👉.bottom_p_BCtype, 👉.bottom_p_BCValue, 
+    👉.bottom_u_BCtype, 👉.bottom_u_BCValue, 
+    👉.bottom_v_BCtype, 👉.bottom_v_BCValue, 
+    👉.bottom_T_BCtype, 👉.bottom_T_BCValue, 
+    👉.bottom_Y_BCtype, 👉.bottom_Y_BCValue,
+    Ap)
+
+    coupled_Ap_boundary!(👉,cells,faces,
+    faces_boundary_left, 
+    👉.left_p_BCtype, 👉.left_p_BCValue, 
+    👉.left_u_BCtype, 👉.left_u_BCValue, 
+    👉.left_v_BCtype, 👉.left_v_BCValue, 
+    👉.left_T_BCtype, 👉.left_T_BCValue, 
+    👉.left_Y_BCtype, 👉.left_Y_BCValue,
+    Ap)
+
+    coupled_Ap_boundary!(👉,cells,faces,
+    faces_boundary_right, 
+    👉.right_p_BCtype, 👉.right_p_BCValue, 
+    👉.right_u_BCtype, 👉.right_u_BCValue, 
+    👉.right_v_BCtype, 👉.right_v_BCValue, 
+    👉.right_T_BCtype, 👉.right_T_BCValue, 
+    👉.right_Y_BCtype, 👉.right_Y_BCValue,
+    Ap)
+    
 
 
     # contruct A matrix  
@@ -319,9 +373,12 @@ function coupled!(
         ΔLR = norm(centerᵣ - centerₗ)
 
         ρˢ = 1.0 / (0.5/ρₗ + 0.5/ρᵣ)
-        d = 0.5 * (cells[face.owner].Ω / (Ap[face.owner]+1.e-250) + cells[face.neighbour].Ω / (Ap[face.neighbour]+1.e-250) )
-        d̂ = 👉.Δt / ρˢ
-        #d̂ = d / (1.0 + ρˢ / 👉.Δt * d)
+        d = 0.5 * (1.0 / (Ap[face.owner]) + 1.0 / (Ap[face.neighbour]) )
+        #d̂ = 👉.Δt / ρˢ
+        d̂ = d / (2.0 + ρˢ / 👉.Δt * d)
+        if d>1.e9
+            d̂ = 👉.Δt / ρˢ
+        end
         
         # Rhie-Chow
         Uₙ += d̂ * ρˢ * 0.5 / ρₗ * ∂Δp∂x0[face.owner, 1] * face.n̂[1]
@@ -332,9 +389,15 @@ function coupled!(
         Uₙ += d̂ * ρˢ * 0.5 / ρᵣ * ∂Δp∂x0[face.neighbour, 3] * face.n̂[3]
         Uₙ -= d̂ * (pᵣ-pₗ) / ΔLR
 
-        
-        Wₗ = 0.5 * (1.0 + sign(Uₙ))
-        Wᵣ = 1.0 - Wₗ
+        Wₗ = 0.0
+        Wᵣ = 0.0
+        if 👉.spatial_discretizationScheme == "upwind"
+            Wₗ = 0.5 * (1.0 + sign(Uₙ))
+            Wᵣ = 1.0 - Wₗ
+        elseif 👉.spatial_discretizationScheme == "central"
+            Wₗ = 0.5
+            Wᵣ = 1.0 - Wₗ
+        end
 
         ρₙ = Wₗ * ρₗ + Wᵣ * ρᵣ
         uₙ = Wₗ * uₗ + Wᵣ * uᵣ
@@ -355,6 +418,7 @@ function coupled!(
         Hₜₗ_ACID, Hₜᵣ_ACID, ∂ρ∂Tₗ_ACID, ∂ρ∂Tᵣ_ACID, ∂Hₜ∂Tₗ_ACID, ∂Hₜ∂Tᵣ_ACID,
         ∂ρ∂Y₁ₗ_ACID, ∂ρ∂Y₁ᵣ_ACID =
         EOS_ACID(
+            👉,
             pₗ,pᵣ,
             cells[face.owner].var[👉.u],cells[face.neighbour].var[👉.u],
             cells[face.owner].var[👉.v],cells[face.neighbour].var[👉.v],
@@ -835,563 +899,49 @@ function coupled!(
     
     # boundary faces
     #boundary = append(faces_boundary_top , faces_boundary_bottom , faces_boundary_left , faces_boundary_right )
-    bc_wall = []
-    append!( bc_wall, faces_boundary_top )
-    append!( bc_wall, faces_boundary_bottom )
-    append!( bc_wall, faces_boundary_left )
-    append!( bc_wall, faces_boundary_right )
-
-    bc_slipwall = []
-    
-    bc_subinlet = []
-    
-    bc_suboutlet = []
-    
-    bc_supoutlet = []
-
-    for face in bc_wall
-        
-        ijStartₗ = B_n*(face.owner-1)
-
-        i = A_n*(face.owner-1)
-
-        ρₙ = cells[face.owner].var[👉.ρ]
-        ∂ρ∂pₙ = cells[face.owner].var[👉.∂ρ∂p]
-        ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
-        ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
-        ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
-        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
-        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
-        pₙ = cells[face.owner].var[👉.p]
-        Hₜₙ = cells[face.owner].var[👉.Hₜ]
-        Y₁ₙ = cells[face.owner].var[👉.Y₁]
-
-        ΔS = face.ΔS
-
-        uₙ = 0.0
-        vₙ = 0.0
-        wₙ = 0.0
-        Uₙ = 0.0
-        Tₙ = cells[face.owner].var[👉.T]
-        α₁ₙ = cells[face.owner].var[👉.α₁]
-
-
-        ρₙ, Hₜₙ, cₙ = faceEOS!(pₙ,uₙ,vₙ,wₙ,Tₙ,α₁ₙ)
-
-        # continuity
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
-
-        
-        # x-momentum
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * uₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
-
-        
-        # y-momentum
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * vₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
-
-
-        # energy
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂pₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
-
-
-        # massfraction
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
-
-
-        B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
-        B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
-        B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
-        B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
-        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
-        
-
-    end
- 
-
-    for face in bc_slipwall
-        
-        ijStartₗ = B_n*(face.owner-1)
-
-        i = A_n*(face.owner-1)
-
-        ρₙ = cells[face.owner].var[👉.ρ]
-        ∂ρ∂pₙ = cells[face.owner].var[👉.∂ρ∂p]
-        ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
-        ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
-        ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
-        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
-        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
-        pₙ = cells[face.owner].var[👉.p]
-        Hₜₙ = cells[face.owner].var[👉.Hₜ]
-        Y₁ₙ = cells[face.owner].var[👉.Y₁]
-
-        ΔS = face.ΔS
-
-        Uₙ = 0.0
-        Uₙ += cells[face.owner].var[👉.u]*face.n̂[1]
-        Uₙ += cells[face.owner].var[👉.v]*face.n̂[2]
-        Uₙ += cells[face.owner].var[👉.w]*face.n̂[3]
-
-        uₙ = cells[face.owner].var[👉.u] - Uₙ * face.n̂[1]
-        vₙ = cells[face.owner].var[👉.v] - Uₙ * face.n̂[2]
-        wₙ = cells[face.owner].var[👉.w] - Uₙ * face.n̂[3]
-
-        Uₙ = uₙ * face.n̂[1] + vₙ * face.n̂[2] + wₙ * face.n̂[3]
-
-        Tₙ = cells[face.owner].var[👉.T]
-        α₁ₙ = cells[face.owner].var[👉.α₁]
-
-
-        ρₙ, Hₜₙ, cₙ = faceEOS!(pₙ,uₙ,vₙ,wₙ,Tₙ,α₁ₙ)
-
-        # continuity
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
-
-        
-        # x-momentum
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * uₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
-
-        
-        # y-momentum
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * vₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
-
-
-        # energy
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂pₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
-
-
-        # massfraction
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
-
-
-
-        B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
-        B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
-        B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
-        B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
-        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
-        
-
-    end
- 
-    for face in bc_subinlet
-        
-        ijStartₗ = B_n*(face.owner-1)
-
-        i = A_n*(face.owner-1)
-
-        ρₙ = cells[face.owner].var[👉.ρ]
-        ∂ρ∂pₙ = cells[face.owner].var[👉.∂ρ∂p]
-        ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
-        ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
-        ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
-        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
-        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
-        pₙ = cells[face.owner].var[👉.p]
-        Hₜₙ = cells[face.owner].var[👉.Hₜ]
-        Y₁ₙ = cells[face.owner].var[👉.Y₁]
-
-        ΔS = face.ΔS
-
-        uₙ = 1.0
-        #uₙ = 0.5 * ( 1.0 + cells[face.owner].var[👉.u] )
-        vₙ = 0.0
-        wₙ = 0.0
-        Uₙ = uₙ*face.n̂[1] + vₙ*face.n̂[2]
-
-        Tₙ = 300.0
-        #Tₙ = 0.5 * ( 300.0 + cells[face.owner].var[👉.T] )
-        Y₁ₙ = 1.0
-        
-        #pₙ = 101325.0
-
-        ρₙ, Hₜₙ, cₙ = faceEOS!(pₙ,uₙ,vₙ,wₙ,Tₙ,Y₁ₙ)
-
-        centerₗ = [cells[face.owner].x, cells[face.owner].y, cells[face.owner].z]
-        centerᵣ = [face.x, face.y, face.z]
-        ΔLR = 1.0 * norm(centerᵣ - centerₗ)
-
-        # continuity
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * Uₙ * ΔS# + ρₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += 0.0#0.5 * (ρₙ * face.n̂[1] * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (ρₙ * face.n̂[2] * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * ΔS)
-
-        
-        # x-momentum
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * uₙ * Uₙ * ΔS# + ρₙ * uₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += 0.0#0.5 * (ρₙ * Uₙ * ΔS + ρₙ * uₙ * face.n̂[1] * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (ρₙ * uₙ * face.n̂[2] * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * uₙ * Uₙ * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * uₙ * Uₙ * ΔS)
-
-        
-        # y-momentum
-        i += 1
-        A_vals[i] += ∂ρ∂pₙ * vₙ * Uₙ * ΔS# + ρₙ * vₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += 0.0#0.5 * ρₙ * vₙ * face.n̂[1] * ΔS
-        i += 1
-        A_vals[i] += 0.0#0.5 * (ρₙ * Uₙ * ΔS + ρₙ * vₙ * face.n̂[2] * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * vₙ * Uₙ * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * vₙ * Uₙ * ΔS)
-
-
-        # energy
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂pₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += 0.0#0.5 * (ρₙ * face.n̂[1] * Hₜₙ * ΔS + ρₙ * Uₙ * uₙ * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (ρₙ * face.n̂[2] * Hₜₙ * ΔS + ρₙ * Uₙ * vₙ * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS)
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS)
-
-
-        # massfraction
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += 0.0#
-        i += 1
-        A_vals[i] += 0.0#ρₙ * face.n̂[2] * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0#∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += 0.0#∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
-
-
-        B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
-        B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
-        B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
-        B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
-        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
-        
-
-    end
- 
-    for face in bc_suboutlet
-        
-        ijStartₗ = B_n*(face.owner-1)
-
-        i = A_n*(face.owner-1)
-
-        ρₙ = cells[face.owner].var[👉.ρ]
-        ∂ρ∂pₙ = cells[face.owner].var[👉.∂ρ∂p]
-        ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
-        ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
-        ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
-        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
-        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
-        pₙ = cells[face.owner].var[👉.p]
-        Hₜₙ = cells[face.owner].var[👉.Hₜ]
-        Y₁ₙ = cells[face.owner].var[👉.Y₁]
-
-        ΔS = face.ΔS
-
-        uₙ = cells[face.owner].var[👉.u]
-        vₙ = cells[face.owner].var[👉.v]
-        wₙ = cells[face.owner].var[👉.w]
-        Uₙ = uₙ*face.n̂[1] + vₙ*face.n̂[2]
-
-        Tₙ = cells[face.owner].var[👉.T]
-        α₁ₙ = cells[face.owner].var[👉.α₁]
-
-        pₙ = 101325.0 #0.5 * ( 101325.0 + cells[face.owner].var[👉.p] )
-        
-        ρₙ, Hₜₙ, cₙ = faceEOS!(pₙ,uₙ,vₙ,wₙ,Tₙ,α₁ₙ)
-
-        centerₗ = [cells[face.owner].x, cells[face.owner].y, cells[face.owner].z]
-        centerᵣ = [face.x, face.y, face.z]
-        ΔLR = 2.0 * norm(centerᵣ - centerₗ)
-
-        # continuity
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂pₙ * Uₙ * ΔS) + ρₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[1] * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[2] * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
-
-        
-        # x-momentum
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂pₙ * uₙ * Uₙ * ΔS) + ρₙ * uₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += (ρₙ * Uₙ * ΔS + ρₙ * uₙ * face.n̂[1] * ΔS)
-        i += 1
-        A_vals[i] += ρₙ * uₙ * face.n̂[2] * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
-
-        
-        # y-momentum
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂pₙ * vₙ * Uₙ * ΔS) + ρₙ * vₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += ρₙ * vₙ * face.n̂[1] * ΔS
-        i += 1
-        A_vals[i] += (ρₙ * Uₙ * ΔS + ρₙ * vₙ * face.n̂[2] * ΔS)
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
-
-
-        # energy
-        i += 1
-        A_vals[i] += 0.0#0.5 * (∂ρ∂pₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂pₙ * ΔS) + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[1] * Hₜₙ * ΔS + ρₙ * Uₙ * uₙ * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[2] * Hₜₙ * ΔS + ρₙ * Uₙ * vₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
-
-
-        # massfraction
-        i += 1
-        A_vals[i] += 0.0
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[1] * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[2] * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
-
-        B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
-        B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
-        B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
-        B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
-        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
-        
-
-    end
- 
-    
-    
-    for face in bc_supoutlet
-        
-        ijStartₗ = B_n*(face.owner-1)
-
-        i = A_n*(face.owner-1)
-
-        ρₙ = cells[face.owner].var[👉.ρ]
-        ∂ρ∂pₙ = cells[face.owner].var[👉.∂ρ∂p]
-        ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
-        ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
-        ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
-        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
-        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
-        pₙ = cells[face.owner].var[👉.p]
-        Hₜₙ = cells[face.owner].var[👉.Hₜ]
-        Y₁ₙ = cells[face.owner].var[👉.Y₁]
-
-        ΔS = face.ΔS
-
-        uₙ = cells[face.owner].var[👉.u]
-        vₙ = cells[face.owner].var[👉.v]
-        wₙ = cells[face.owner].var[👉.w]
-        Uₙ = uₙ*face.n̂[1] + vₙ*face.n̂[2]
-
-        Tₙ = cells[face.owner].var[👉.T]
-        α₁ₙ = cells[face.owner].var[👉.α₁]
-
-        ρₙ, Hₜₙ, cₙ = faceEOS!(pₙ,uₙ,vₙ,wₙ,Tₙ,α₁ₙ)
-
-        centerₗ = [cells[face.owner].x, cells[face.owner].y, cells[face.owner].z]
-        centerᵣ = [face.x, face.y, face.z]
-        ΔLR = 2.0 * norm(centerᵣ - centerₗ)
-
-        # continuity
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * Uₙ * ΔS) #+ ρₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[1] * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[2] * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * ΔS
-
-        
-        # x-momentum
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * uₙ * Uₙ * ΔS)# + ρₙ * uₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += (ρₙ * Uₙ * ΔS + ρₙ * uₙ * face.n̂[1] * ΔS)
-        i += 1
-        A_vals[i] += ρₙ * uₙ * face.n̂[2] * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * uₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS
-
-        
-        # y-momentum
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * vₙ * Uₙ * ΔS)# + ρₙ * vₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += ρₙ * vₙ * face.n̂[1] * ΔS
-        i += 1
-        A_vals[i] += (ρₙ * Uₙ * ΔS + ρₙ * vₙ * face.n̂[2] * ΔS)
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * vₙ * Uₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS
-
-
-        # energy
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂pₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[1] * Hₜₙ * ΔS + ρₙ * Uₙ * uₙ * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[2] * Hₜₙ * ΔS + ρₙ * Uₙ * vₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS
-
-
-        # massfraction
-        i += 1
-        A_vals[i] += (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[1] * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ρₙ * face.n̂[2] * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS
-        i += 1
-        A_vals[i] += ∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS
-
-
-        B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
-        B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
-        B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
-        B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
-        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
-        
-
-    end
- 
+    #bc_wall = []
+    #append!( bc_wall, faces_boundary_top )
+    #append!( bc_wall, faces_boundary_bottom )
+    #append!( bc_wall, faces_boundary_left )
+    #append!( bc_wall, faces_boundary_right )
+
+
+    coupled_boundary!(
+        👉,cells,faces,
+        faces_boundary_top, 
+        👉.top_p_BCtype, 👉.top_p_BCValue, 
+        👉.top_u_BCtype, 👉.top_u_BCValue, 
+        👉.top_v_BCtype, 👉.top_v_BCValue, 
+        👉.top_T_BCtype, 👉.top_T_BCValue, 
+        👉.top_Y_BCtype, 👉.top_Y_BCValue,
+        B_n, A_n, A_vals, B)
+
+    coupled_boundary!(👉,cells,faces,
+        faces_boundary_bottom, 
+        👉.bottom_p_BCtype, 👉.bottom_p_BCValue, 
+        👉.bottom_u_BCtype, 👉.bottom_u_BCValue, 
+        👉.bottom_v_BCtype, 👉.bottom_v_BCValue, 
+        👉.bottom_T_BCtype, 👉.bottom_T_BCValue, 
+        👉.bottom_Y_BCtype, 👉.bottom_Y_BCValue,
+        B_n, A_n, A_vals, B)
+
+    coupled_boundary!(👉,cells,faces,
+        faces_boundary_left, 
+        👉.left_p_BCtype, 👉.left_p_BCValue, 
+        👉.left_u_BCtype, 👉.left_u_BCValue, 
+        👉.left_v_BCtype, 👉.left_v_BCValue, 
+        👉.left_T_BCtype, 👉.left_T_BCValue, 
+        👉.left_Y_BCtype, 👉.left_Y_BCValue,
+        B_n, A_n, A_vals, B)
+
+    coupled_boundary!(👉,cells,faces,
+        faces_boundary_right, 
+        👉.right_p_BCtype, 👉.right_p_BCValue, 
+        👉.right_u_BCtype, 👉.right_u_BCValue, 
+        👉.right_v_BCtype, 👉.right_v_BCValue, 
+        👉.right_T_BCtype, 👉.right_T_BCValue, 
+        👉.right_Y_BCtype, 👉.right_Y_BCValue,
+        B_n, A_n, A_vals, B)
 
 
     A = sparse(A_rows,A_cols,A_vals)
@@ -1469,5 +1019,343 @@ function coupled!(
     log10(sqrt(norm_U)/length(cells)/(maximum_U+1.e-200)),
     log10(sqrt(norm_T)/length(cells)/(maximum_T+1.e-200))
    
+
+
+end
+
+
+
+function coupled_boundary!(
+    👉::controls,
+    cells::Vector{mesh.Cell},
+    faces::Vector{mesh.Face},
+    bc,
+    p_BCtype, p_BCValue, 
+    u_BCtype, u_BCValue, 
+    v_BCtype, v_BCValue, 
+    T_BCtype, T_BCValue, 
+    Y_BCtype, Y_BCValue,
+    B_n, A_n, A_vals, B
+    )
+
+    for face in bc
+        
+        ijStartₗ = B_n*(face.owner-1)
+
+        i = A_n*(face.owner-1)
+
+        ρₙ = cells[face.owner].var[👉.ρ]
+        ∂ρ∂pₙ = cells[face.owner].var[👉.∂ρ∂p]
+        ∂ρ∂Tₙ = cells[face.owner].var[👉.∂ρ∂T]
+        ∂Hₜ∂pₙ = cells[face.owner].var[👉.∂Hₜ∂p]
+        ∂Hₜ∂Tₙ = cells[face.owner].var[👉.∂Hₜ∂T]
+        ∂Hₜ∂Y₁ₙ = cells[face.owner].var[👉.∂Hₜ∂Y₁]
+        ∂ρ∂Y₁ₙ = cells[face.owner].var[👉.∂ρ∂Y₁]
+        pₙ = cells[face.owner].var[👉.p]
+        Hₜₙ = cells[face.owner].var[👉.Hₜ]
+        Y₁ₙ = cells[face.owner].var[👉.Y₁]
+        Tₙ = cells[face.owner].var[👉.T]
+
+        ΔS = face.ΔS
+
+        Uₙ = 0.0
+        Uₙ += cells[face.owner].var[👉.u]*face.n̂[1]
+        Uₙ += cells[face.owner].var[👉.v]*face.n̂[2]
+        Uₙ += cells[face.owner].var[👉.w]*face.n̂[3]
+
+        uₙ = cells[face.owner].var[👉.u] - Uₙ * face.n̂[1]
+        vₙ = cells[face.owner].var[👉.v] - Uₙ * face.n̂[2]
+        wₙ = 0.0#cells[face.owner].var[👉.w] - Uₙ * face.n̂[3]
+
+        Uₙ = uₙ * face.n̂[1] + vₙ * face.n̂[2] + wₙ * face.n̂[3]
+
+        id = []
+        push!(id,i)
+        push!(id,i+5)
+        push!(id,i+10)
+        push!(id,i+15)
+        push!(id,i+20)
+
+        coeff_p = 0.0
+        if p_BCtype == "zeroGradient"
+            coeff_p = 1.0
+            pₙ = cells[face.owner].var[👉.p]
+        elseif p_BCtype == "fixedValue"
+            coeff_p = 0.0
+            pₙ = p_BCValue
+        elseif p_BCtype == "function"
+            coeff_p = 0.0
+            pₙ = p_BCValue(👉.time)
+        end
+        
+        coeff_u = 0.0
+        if u_BCtype == "zeroGradient"
+            coeff_u = 1.0
+            uₙ = cells[face.owner].var[👉.u]
+        elseif u_BCtype == "fixedValue"
+            coeff_u = 0.0
+            uₙ = u_BCValue
+        elseif u_BCtype == "slip"
+            coeff_u = 0.0
+            uₙ = uₙ
+        elseif u_BCtype == "wall"
+            coeff_u = 0.0
+            uₙ = 0.0
+        elseif u_BCtype == "function"
+            coeff_u = 0.0
+            uₙ = u_BCValue(👉.time)
+        end
+        
+        coeff_v = 0.0
+        if v_BCtype == "zeroGradient"
+            coeff_v = 1.0
+            vₙ = cells[face.owner].var[👉.v]
+        elseif v_BCtype == "fixedValue"
+            coeff_v = 0.0
+            vₙ = v_BCValue
+        elseif v_BCtype == "slip"
+            coeff_v = 0.0
+            vₙ = vₙ
+        elseif v_BCtype == "wall"
+            coeff_v = 0.0
+            vₙ = 0.0
+        elseif v_BCtype == "function"
+            coeff_v = 0.0
+            vₙ = v_BCValue(👉.time)
+        end
+        
+        coeff_T = 0.0
+        if T_BCtype == "zeroGradient"
+            coeff_T = 1.0
+            Tₙ = cells[face.owner].var[👉.T]
+        elseif T_BCtype == "fixedValue"
+            coeff_T = 0.0
+            Tₙ = T_BCValue
+        elseif T_BCtype == "function"
+            coeff_T = 0.0
+            Tₙ = T_BCValue(👉.time)
+        end
+        
+        coeff_Y = 0.0
+        if T_BCtype == "zeroGradient"
+            coeff_Y = 1.0
+            Y₁ₙ = cells[face.owner].var[👉.Y₁]
+        elseif Y_BCtype == "fixedValue"
+            coeff_Y = 0.0
+            Y₁ₙ = Y_BCValue
+        elseif Y_BCtype == "function"
+            coeff_Y = 0.0
+            Y₁ₙ = Y_BCValue(👉.time)
+        end
+        
+        Uₙ = uₙ * face.n̂[1] + vₙ * face.n̂[2] + wₙ * face.n̂[3]
+
+        ρₙ, Hₜₙ, cₙ = faceEOS!(👉,pₙ,uₙ,vₙ,wₙ,Tₙ,Y₁ₙ)
+        
+        # continuity
+        i += 1
+        A_vals[i] += coeff_p * (∂ρ∂pₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_u * (ρₙ * face.n̂[1] * ΔS)
+        i += 1
+        A_vals[i] += coeff_v * (ρₙ * face.n̂[2] * ΔS)
+        i += 1
+        A_vals[i] += coeff_T * (∂ρ∂Tₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_Y * (∂ρ∂Y₁ₙ * Uₙ * ΔS)
+
+        
+        # x-momentum
+        i += 1
+        A_vals[i] += coeff_p * (∂ρ∂pₙ * uₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_u * (ρₙ * Uₙ * ΔS + ρₙ * uₙ * face.n̂[1] * ΔS)
+        i += 1
+        A_vals[i] += coeff_v * (ρₙ * uₙ * face.n̂[2] * ΔS)
+        i += 1
+        A_vals[i] += coeff_T * (∂ρ∂Tₙ * uₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_Y * (∂ρ∂Y₁ₙ * uₙ * Uₙ * ΔS)
+
+        
+        # y-momentum
+        i += 1
+        A_vals[i] += coeff_p * (∂ρ∂pₙ * vₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_u * (ρₙ * vₙ * face.n̂[1] * ΔS)
+        i += 1
+        A_vals[i] += coeff_v * (ρₙ * Uₙ * ΔS + ρₙ * vₙ * face.n̂[2] * ΔS)
+        i += 1
+        A_vals[i] += coeff_T * (∂ρ∂Tₙ * vₙ * Uₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_Y * (∂ρ∂Y₁ₙ * vₙ * Uₙ * ΔS)
+
+
+        # energy
+        i += 1
+        A_vals[i] += coeff_p * (∂ρ∂pₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂pₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_u * (ρₙ * face.n̂[1] * Hₜₙ * ΔS + ρₙ * Uₙ * uₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_v * (ρₙ * face.n̂[2] * Hₜₙ * ΔS + ρₙ * Uₙ * vₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_T * (∂ρ∂Tₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Tₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_Y * (∂ρ∂Y₁ₙ * Uₙ * Hₜₙ * ΔS + ρₙ * Uₙ * ∂Hₜ∂Y₁ₙ * ΔS)
+
+
+        # massfraction
+        i += 1
+        A_vals[i] += coeff_p * (∂ρ∂pₙ * Uₙ * Y₁ₙ * ΔS)# + ρₙ * Hₜₙ * 👉.Δt/ρₙ / ΔLR * ΔS
+        i += 1
+        A_vals[i] += coeff_u * (ρₙ * face.n̂[1] * Y₁ₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_v * (ρₙ * face.n̂[2] * Y₁ₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_T * (∂ρ∂Tₙ * Uₙ * Y₁ₙ * ΔS)
+        i += 1
+        A_vals[i] += coeff_Y * (∂ρ∂Y₁ₙ * Uₙ * Y₁ₙ * ΔS + ρₙ * Uₙ * ΔS)
+
+
+        B[ijStartₗ + 1] -= ( ρₙ * Uₙ * ΔS )
+        B[ijStartₗ + 2] -= ( ρₙ * uₙ * Uₙ * ΔS + pₙ * face.n̂[1] * ΔS )
+        B[ijStartₗ + 3] -= ( ρₙ * vₙ * Uₙ * ΔS + pₙ * face.n̂[2] * ΔS )
+        B[ijStartₗ + 4] -= ( ρₙ * Hₜₙ * Uₙ * ΔS )
+        B[ijStartₗ + 5] -= ( ρₙ * Y₁ₙ * Uₙ * ΔS )
+        
+
+    end
+ 
+
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+function coupled_Ap_boundary!(
+    👉::controls,
+    cells::Vector{mesh.Cell},
+    faces::Vector{mesh.Face},
+    bc,
+    p_BCtype, p_BCValue, 
+    u_BCtype, u_BCValue, 
+    v_BCtype, v_BCValue, 
+    T_BCtype, T_BCValue, 
+    Y_BCtype, Y_BCValue,
+    Ap
+    )
+
+    for face in bc
+
+        ρₙ = cells[face.owner].var[👉.ρ]
+        pₙ = cells[face.owner].var[👉.p]
+        Hₜₙ = cells[face.owner].var[👉.Hₜ]
+        Y₁ₙ = cells[face.owner].var[👉.Y₁]
+        Tₙ = cells[face.owner].var[👉.T]
+
+        ΔS = face.ΔS
+
+        Uₙ = 0.0
+        Uₙ += cells[face.owner].var[👉.u]*face.n̂[1]
+        Uₙ += cells[face.owner].var[👉.v]*face.n̂[2]
+        Uₙ += cells[face.owner].var[👉.w]*face.n̂[3]
+
+        uₙ = cells[face.owner].var[👉.u] - Uₙ * face.n̂[1]
+        vₙ = cells[face.owner].var[👉.v] - Uₙ * face.n̂[2]
+        wₙ = 0.0#cells[face.owner].var[👉.w] - Uₙ * face.n̂[3]
+
+        coeff_p = 0.0
+        if p_BCtype == "zeroGradient"
+            coeff_p = 1.0
+            pₙ = cells[face.owner].var[👉.p]
+        elseif p_BCtype == "fixedValue"
+            coeff_p = 0.0
+            pₙ = p_BCValue
+        elseif p_BCtype == "function"
+            coeff_p = 0.0
+            pₙ = p_BCValue(👉.time)
+        end
+        
+        coeff_u = 0.0
+        if u_BCtype == "zeroGradient"
+            coeff_u = 1.0
+            uₙ = cells[face.owner].var[👉.u]
+        elseif u_BCtype == "fixedValue"
+            coeff_u = 0.0
+            uₙ = u_BCValue
+        elseif u_BCtype == "slip"
+            coeff_u = 0.0
+            uₙ = uₙ
+        elseif u_BCtype == "wall"
+            coeff_u = 0.0
+            uₙ = 0.0
+        elseif u_BCtype == "function"
+            coeff_u = 0.0
+            uₙ = u_BCValue(👉.time)
+        end
+        
+        coeff_v = 0.0
+        if v_BCtype == "zeroGradient"
+            coeff_v = 1.0
+            vₙ = cells[face.owner].var[👉.v]
+        elseif v_BCtype == "fixedValue"
+            coeff_v = 0.0
+            vₙ = v_BCValue
+        elseif v_BCtype == "slip"
+            coeff_v = 0.0
+            vₙ = vₙ
+        elseif v_BCtype == "wall"
+            coeff_v = 0.0
+            vₙ = 0.0
+        elseif v_BCtype == "function"
+            coeff_v = 0.0
+            vₙ = v_BCValue(👉.time)
+        end
+        
+        coeff_T = 0.0
+        if T_BCtype == "zeroGradient"
+            coeff_T = 1.0
+            Tₙ = cells[face.owner].var[👉.T]
+        elseif T_BCtype == "fixedValue"
+            coeff_T = 0.0
+            Tₙ = T_BCValue
+        elseif T_BCtype == "function"
+            coeff_T = 0.0
+            Tₙ = T_BCValue(👉.time)
+        end
+        
+        coeff_Y = 0.0
+        if T_BCtype == "zeroGradient"
+            coeff_Y = 1.0
+            Y₁ₙ = cells[face.owner].var[👉.Y₁]
+        elseif Y_BCtype == "fixedValue"
+            coeff_Y = 0.0
+            Y₁ₙ = Y_BCValue
+        elseif Y_BCtype == "function"
+            coeff_Y = 0.0
+            Y₁ₙ = Y_BCValue(👉.time)
+        end
+        
+        Uₙ = uₙ * face.n̂[1] + vₙ * face.n̂[2] + wₙ * face.n̂[3]
+
+        ρₙ, Hₜₙ, cₙ = faceEOS!(👉,pₙ,uₙ,vₙ,wₙ,Tₙ,Y₁ₙ)
+        
+
+        flux = ρₙ * Uₙ * ΔS
+        Ap[face.owner] += flux / cells[face.owner].Ω
+
+
+    end
+ 
+
 
 end

@@ -1,16 +1,3 @@
-include("./structured_grid_uniform.jl")
-include("./constant.jl")
-include("./controls.jl")
-include("./EOS.jl")
-include("./transport.jl")
-include("./momentum.jl")
-include("./pressure.jl")
-include("./volumefraction.jl")
-include("./massfraction.jl")
-include("./energy.jl")
-include("./coupled_fully.jl")
-
-
 using Plots
 #using PlotlyJS
 using LinearAlgebra
@@ -20,122 +7,47 @@ using IterativeSolvers
 
 using Pardiso
 
-function plotting1D(
-    Nx, Ny, 
-    👉::controls,
-    cells::Vector{mesh.Cell}
-)
+using CSV
+using DataFrames
 
-    X = zeros(Float64, length(cells), 1)
-    Y = zeros(Float64, length(cells), 8)
-    for i in 1:length(cells)
-        X[i] = cells[i].x
-        Y[i,1] = cells[i].var[👉.p]
-        Y[i,2] = cells[i].var[👉.u]
-        Y[i,3] = cells[i].var[👉.v]
-        Y[i,4] = cells[i].var[👉.T]
-        Y[i,5] = cells[i].var[👉.α₁]
-        Y[i,6] = cells[i].var[👉.ρ]
-        Y[i,7] = cells[i].var[👉.c]
-        Y[i,8] = cells[i].var[👉.Hₜ]
-        
-    end
-    plot(X,Y,layout = grid(3, 3), label = ["p" "u" "v" "T" "α₁" "ρ" "c" "Hₜ"] )
-
-    gui()
-
-end
-
-
-function plotting2D(
-    Nx, Ny, 
-    👉::controls,
-    cells::Vector{mesh.Cell}
-)
-
-    #plt = plot(X,VAR,layout = 
-    #grid(3, 2),
-    #label = ["p" "u" "T" "Y₁" "ρ" "c"] )
-    #plot(plt)
-    #contourf!(X,Y,VAR)
-
-    X = zeros(Float64, Nx)
-    Y = zeros(Float64, Ny)
-    VAR1 = zeros(Float64, Nx, Ny)
-    VAR2 = zeros(Float64, Nx, Ny)
-    VAR3 = zeros(Float64, Nx, Ny)
-    VAR4 = zeros(Float64, Nx, Ny)
-    VAR5 = zeros(Float64, Nx, Ny)
-    VAR6 = zeros(Float64, Nx, Ny)
-    for i in 1:Nx
-        for j in 1:Ny
-            k=1
-            ijk = i + Nx*(j-1) + Nx*Ny*(k-1)
-            X[i] = cells[ijk].x
-            Y[j] = cells[ijk].y
-            VAR1[i,j] = cells[ijk].var[👉.p]
-            VAR2[i,j] = cells[ijk].var[👉.ρ]
-            #VAR2[i,j] = cells[ijk].var[👉.α₁]
-            VAR3[i,j] = cells[ijk].var[👉.u]
-            VAR4[i,j] = cells[ijk].var[👉.v]
-            VAR5[i,j] = cells[ijk].var[👉.w]
-            VAR6[i,j] = cells[ijk].var[👉.T]
-
-        end
-    end
-
-    #plotlyjs()
-    #X = 0.5*Δx:Δx:👉.Lx
-    #Y = 0.5*Δy:Δy:👉.Ly
-    #X = repeat(reshape(x, 1, :), length(y), 1)
-    #Y = repeat(y, 1, length(x))
-    #plot(contour(X, Y, VAR2, fill = true))
-    plot(
-        heatmap(X, Y, VAR1', c = :bluesreds),
-        heatmap(X, Y, VAR2', c = :bluesreds),
-        heatmap(X, Y, VAR3', c = :bluesreds),
-        heatmap(X, Y, VAR4', c = :bluesreds),
-        heatmap(X, Y, VAR5', c = :bluesreds),
-        heatmap(X, Y, VAR6', c = :bluesreds);
-        layout = grid(3, 2)
-    )
-
-    gui()
-#=
-    plot(contour(
-        x=0.5*Δx:Δx:👉.Lx,#X, # horizontal axis
-        y=0.5*Δy:Δy:👉.Ly,#Y, # vertical axis
-        z=VAR2'#VAR[:,5]'
-    ))
-=#
-
-
-
-end
-
+include("./src/structured_grid_uniform.jl")
+include("./src/constant.jl")
+include("./src/controls.jl")
+include("./src/EOS.jl")
+include("./src/transport.jl")
+include("./src/momentum.jl")
+include("./src/pressure.jl")
+include("./src/volumefraction.jl")
+include("./src/massfraction.jl")
+include("./src/energy.jl")
+include("./src/coupled_fully.jl")
+include("./src/plot.jl")
+include("./src/write.jl")
+include("./test/oneD_single_phase_subsonic.jl")
+include("./test/oneD_single_phase_supsonic.jl")
 
 function main()
 
-    #=
-    Nx = 50
-    Ny = 50
-    Nz = 1
-    Lx = 1.0
-    Ly = 1.0
-    Lz = 0.1
-    Δt = 1.e-2
-    =#
-    
-    Nx = 50
-    Ny = 50
-    Nz = 1
-    Lx = 1.0
-    Ly = 1.0
-    Lz = 0.1
-    Δt = 1.e-4
+    Nx, Ny, Nz, Lx, Ly, Lz, 
+    corantNumber, Δt, Δt_steps, Δt_iters, pseudoMaxIter,
+    save_time, save_iteration,time_end,
+    temporal_discretizationScheme, spatial_discretizationScheme,
+    gravity,
+    p∞, cᵥ, γ, b, q,
+    initial_p, initial_u, initial_v, initial_T, initial_Y,
+    left_p_BCtype, left_u_BCtype, left_v_BCtype, left_T_BCtype, left_Y_BCtype,
+    right_p_BCtype, right_u_BCtype, right_v_BCtype, right_T_BCtype, right_Y_BCtype,
+    bottom_p_BCtype, bottom_u_BCtype, bottom_v_BCtype, bottom_T_BCtype, bottom_Y_BCtype,
+    top_p_BCtype, top_u_BCtype, top_v_BCtype, top_T_BCtype, top_Y_BCtype,
+    left_p_BCValue, left_u_BCValue, left_v_BCValue, left_T_BCValue, left_Y_BCValue,
+    right_p_BCValue, right_u_BCValue, right_v_BCValue, right_T_BCValue, right_Y_BCValue,
+    bottom_p_BCValue, bottom_u_BCValue, bottom_v_BCValue, bottom_T_BCValue, bottom_Y_BCValue,
+    top_p_BCValue, top_u_BCValue, top_v_BCValue, top_T_BCValue, top_Y_BCValue = 
+
+    Mac_3_test_case()
+
 
     realMaxIter = 1000000
-    pseudoMaxIter = 3
     pseudoMaxResidual = -4.0
 
     CFL = 0.5
@@ -144,12 +56,25 @@ function main()
 
     👉 = controls(
         Nx,Ny,Nz, Lx,Ly,Lz, 
+        temporal_discretizationScheme, spatial_discretizationScheme,
+        gravity,
+        p∞, cᵥ, γ, b, q,
+        left_p_BCtype, left_u_BCtype, left_v_BCtype, left_T_BCtype, left_Y_BCtype,
+        right_p_BCtype, right_u_BCtype, right_v_BCtype, right_T_BCtype, right_Y_BCtype,
+        bottom_p_BCtype, bottom_u_BCtype, bottom_v_BCtype, bottom_T_BCtype, bottom_Y_BCtype,
+        top_p_BCtype, top_u_BCtype, top_v_BCtype, top_T_BCtype, top_Y_BCtype,
+        left_p_BCValue, left_u_BCValue, left_v_BCValue, left_T_BCValue, left_Y_BCValue,
+        right_p_BCValue, right_u_BCValue, right_v_BCValue, right_T_BCValue, right_Y_BCValue,
+        bottom_p_BCValue, bottom_u_BCValue, bottom_v_BCValue, bottom_T_BCValue, bottom_Y_BCValue,
+        top_p_BCValue, top_u_BCValue, top_v_BCValue, top_T_BCValue, top_Y_BCValue,
         realMaxIter,pseudoMaxIter,pseudoMaxResidual, 
-        CFL, Δt, Lco, Uco,
+        corantNumber, CFL, Δt, Lco, Uco,
         0.0, 0, 0, 0.0, 
         1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
-        21,22,23,24,25,26,27,28,29,30,31
+        21,22,23,24,25,26,27,28,29,30,31,
+        32,33,34,35,36,37,38,39,40,41
     )
+    👉.time = 0.0
 
     cells = Vector{mesh.Cell}(undef, 0)
     faces = Vector{mesh.Face}(undef, 0)
@@ -174,128 +99,16 @@ function main()
 
 
     # initialization
-
-    # dam break
     for cell in cells
-        cell.var[👉.p] = 101325.0
-        cell.var[👉.u] = 0.0
-        cell.var[👉.v] = 0.0
+        cell.var[👉.p] = initial_p(cell.x,cell.y)
+        cell.var[👉.u] = initial_u(cell.x,cell.y)
+        cell.var[👉.v] = initial_v(cell.x,cell.y)
         cell.var[👉.w] = 0.0
-        cell.var[👉.T] = 300.0
-        cell.var[👉.Y₁] = 0.0
-        cell.var[👉.α₁] = 0.0
-
-        if cell.x < 0.4 && cell.y < 0.4
-            cell.var[👉.Y₁] = 1.0
-            cell.var[👉.α₁] = 1.0
-        end
-    end
-
-
-
-
-
-    #=
-
-    # 1D interface advection with constant velocity
-    for cell in cells
-        cell.var[👉.p] = 101325.0
-        cell.var[👉.u] = 1.0
-        cell.var[👉.v] = 0.0
-        cell.var[👉.w] = 0.0
-        cell.var[👉.T] = 300.0
-        cell.var[👉.Y₁] = 0.0
-        cell.var[👉.α₁] = 0.0
-
-        if cell.x < 0.5
-            cell.var[👉.Y₁] = 1.0
-            cell.var[👉.α₁] = 1.0
-        end
-    end
-    =#
-
-    #=
-    # 1D helium-bubble in air
-    for cell in cells
-
-        if cell.x < 0.3
-            cell.var[👉.p] = 1.245e5
-            cell.var[👉.u] = 55.33
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 319.48
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        else
-            cell.var[👉.p] = 1.e5
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 300.0
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        end
-
-        
-        if 0.5 < cell.x < 0.7
-            cell.var[👉.Y₁] = 1.0
-            cell.var[👉.α₁] = 1.0
-        end
-    end
-=#
-
-#=
-    # 1D sod shock
-    for cell in cells
-
-        if cell.x < 0.5
-            cell.var[👉.p] = 1.0
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 0.003484
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        else
-            cell.var[👉.p] = 0.1
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 0.002787
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        end
+        cell.var[👉.T] = initial_T(cell.x,cell.y)
+        cell.var[👉.Y₁] = initial_Y(cell.x,cell.y)
+        cell.var[👉.α₁] = initial_Y(cell.x,cell.y)
 
     end
-=#
-
-#=
-
-    # 1D high-pressure water and low-pressure air shock tube
-    for cell in cells
-
-        if cell.x < 0.7
-            cell.var[👉.p] = 1.e9
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 300.0
-            cell.var[👉.Y₁] = 1.0
-            cell.var[👉.α₁] = 1.0
-        else
-            cell.var[👉.p] = 1.e5
-            cell.var[👉.u] = 0.0
-            cell.var[👉.v] = 0.0
-            cell.var[👉.w] = 0.0
-            cell.var[👉.T] = 6.968
-            cell.var[👉.Y₁] = 0.0
-            cell.var[👉.α₁] = 0.0
-        end
-
-    end
-=#
-
-
 
     # EOS
     EOS!(👉, cells)
@@ -305,24 +118,43 @@ function main()
     for cell in cells
         cell.var[👉.μ] = cell.var[👉.α₁] * 0.001 + cell.var[👉.α₂] * 1.e-5
     end
+    
+
+    # save n-step values
+    for cell in cells
+        cell.var[👉.pⁿ] = cell.var[👉.p]
+        cell.var[👉.uⁿ] = cell.var[👉.u]
+        cell.var[👉.vⁿ] = cell.var[👉.v]
+        cell.var[👉.wⁿ] = cell.var[👉.w]
+        cell.var[👉.Y₁ⁿ] = cell.var[👉.Y₁]
+        cell.var[👉.α₁ⁿ] = cell.var[👉.α₁]
+        cell.var[👉.ρⁿ] = cell.var[👉.ρ]
+        cell.var[👉.Hₜⁿ] = cell.var[👉.Hₜ]
+    end
+    
 
     👉.realIter = 1
     👉.realMaxIter = 1000000
+    saveΔt = 👉.Δt
+    Δt_iters_save = 1
     while(
         👉.realIter <= 👉.realMaxIter
     )
 
-        if 👉.realIter < 10 
-            👉.Δt = 5.e-4
-        elseif 👉.realIter < 30
-            👉.Δt = 3.e-3
-        else
-            👉.Δt = 3.e-3
-        end
-            
-
-    
         println("real-time Step: $(👉.realIter) \t Time: $(👉.time)")
+
+
+        # save n-1 step values
+        for cell in cells
+            cell.var[👉.pⁿ⁻¹] = cell.var[👉.pⁿ]
+            cell.var[👉.uⁿ⁻¹] = cell.var[👉.uⁿ]
+            cell.var[👉.vⁿ⁻¹] = cell.var[👉.vⁿ]
+            cell.var[👉.wⁿ⁻¹] = cell.var[👉.wⁿ]
+            cell.var[👉.Y₁ⁿ⁻¹] = cell.var[👉.Y₁ⁿ]
+            cell.var[👉.α₁ⁿ⁻¹] = cell.var[👉.α₁ⁿ]
+            cell.var[👉.ρⁿ⁻¹] = cell.var[👉.ρⁿ]
+            cell.var[👉.Hₜⁿ⁻¹] = cell.var[👉.Hₜⁿ]
+        end
 
         # save n-step values
         for cell in cells
@@ -336,6 +168,30 @@ function main()
             cell.var[👉.Hₜⁿ] = cell.var[👉.Hₜ]
         end
 
+        if Δt_iters[Δt_iters_save] == 👉.realIter
+            Δt_iters_save += 1
+            👉.Δt = Δt_steps[Δt_iters_save]
+        else
+            👉.Δt = Δt_steps[Δt_iters_save]
+        end
+        
+
+        # timestep from corantNumber
+        #=
+        Δtₘᵢₙ = 1.e9
+        for cell in cells
+            U = [cell.var[👉.u] cell.var[👉.v] cell.var[👉.w]]
+            Δtₘᵢₙ = min(Δtₘᵢₙ, cell.Ω^0.333 / norm(U))
+        end
+        if 👉.corantNumber*Δtₘᵢₙ > saveΔt
+            👉.Δt = 👉.corantNumber*Δtₘᵢₙ
+        else
+            👉.Δt = saveΔt
+        end
+        if 👉.realIter == 1
+            👉.Δt = saveΔt
+        end
+        =#
 
 
         for ii in 1:5
@@ -373,7 +229,7 @@ function main()
         👉.pseudoIter = 1
         #👉.pseudoMaxIter = 25
         while(
-            👉.pseudoIter ≤ 👉.pseudoMaxIter
+            👉.pseudoIter ≤ 👉.pseudoMaxIter[Δt_iters_save]
         )
 
 
@@ -393,6 +249,7 @@ function main()
             #println(👉.realIter,", ",👉.pseudoIter,", coupled equation success, ",totresi,", ",resi1,", ",resi2,", ",resi3)
             println(👉.realIter,", ",👉.pseudoIter,", coupled equation success, ",totresi)
 
+            👉.residual = totresi
 
             # EOS
             EOS!(👉, cells)
@@ -404,7 +261,12 @@ function main()
             end
             
             # Plotting
-            plotting2D(Nx, Ny, 👉, cells)
+            if Ny == 1
+                plotting1D(Nx, Ny, 👉, cells)
+            else
+                plotting2D(Nx, Ny, 👉, cells)
+            end
+
             #sleep(1.0)
 
 
@@ -414,6 +276,21 @@ function main()
 
         end
 
+
+        if (👉.time-👉.Δt <= save_time <= 👉.time) ||
+            ( 👉.realIter % save_iteration == 0 )
+            save_file::String = "save\\" * string(👉.realIter) * 
+            "_" * string(round(👉.time; digits=9)) * ".csv"
+            if Ny == 1
+                oneD_write(👉, cells, save_file)
+            else
+                twoD_write(👉, cells, save_file)
+            end
+        end
+
+        if 👉.time > time_end
+            break
+        end
         
         👉.time += 👉.Δt
 
