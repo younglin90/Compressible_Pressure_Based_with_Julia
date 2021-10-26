@@ -20,18 +20,25 @@ include("./src/pressure.jl")
 include("./src/volumefraction.jl")
 include("./src/massfraction.jl")
 include("./src/energy.jl")
-include("./src/coupled_fully.jl")
+include("./src/coupled_fully_SLAU.jl")
 include("./src/plot.jl")
 include("./src/write.jl")
+include("./src/NVD.jl")
+include("./src/reconstruction.jl")
 include("./test/oneD_single_phase_subsonic.jl")
 include("./test/oneD_single_phase_supsonic.jl")
+include("./test/oneD_two_phase_subsonic.jl")
 
 function main()
 
     Nx, Ny, Nz, Lx, Ly, Lz, 
     corantNumber, Δt, Δt_steps, Δt_iters, pseudoMaxIter,
     save_time, save_iteration,time_end,
-    temporal_discretizationScheme, spatial_discretizationScheme,
+    temporal_discretizationScheme, 
+    spatial_discretizationScheme_p,
+    spatial_discretizationScheme_U,
+    spatial_discretizationScheme_T,
+    spatial_discretizationScheme_Y,
     gravity,
     p∞, cᵥ, γ, b, q,
     initial_p, initial_u, initial_v, initial_T, initial_Y,
@@ -44,7 +51,7 @@ function main()
     bottom_p_BCValue, bottom_u_BCValue, bottom_v_BCValue, bottom_T_BCValue, bottom_Y_BCValue,
     top_p_BCValue, top_u_BCValue, top_v_BCValue, top_T_BCValue, top_Y_BCValue = 
 
-    Mac_3_test_case()
+    oneD_test5_air_water_shock_tube()
 
 
     realMaxIter = 1000000
@@ -56,7 +63,11 @@ function main()
 
     👉 = controls(
         Nx,Ny,Nz, Lx,Ly,Lz, 
-        temporal_discretizationScheme, spatial_discretizationScheme,
+        temporal_discretizationScheme, 
+        spatial_discretizationScheme_p,
+        spatial_discretizationScheme_U,
+        spatial_discretizationScheme_T,
+        spatial_discretizationScheme_Y,
         gravity,
         p∞, cᵥ, γ, b, q,
         left_p_BCtype, left_u_BCtype, left_v_BCtype, left_T_BCtype, left_Y_BCtype,
@@ -131,7 +142,16 @@ function main()
         cell.var[👉.ρⁿ] = cell.var[👉.ρ]
         cell.var[👉.Hₜⁿ] = cell.var[👉.Hₜ]
     end
-    
+
+    for face in faces_internal
+        face.Uₙ = 0.5*cells[face.owner].var[👉.u]*face.n̂[1]
+        face.Uₙ += 0.5*cells[face.owner].var[👉.v]*face.n̂[2]
+        face.Uₙ += 0.5*cells[face.owner].var[👉.w]*face.n̂[3]
+        
+        face.Uₙ += 0.5*cells[face.neighbour].var[👉.u]*face.n̂[1]
+        face.Uₙ += 0.5*cells[face.neighbour].var[👉.v]*face.n̂[2]
+        face.Uₙ += 0.5*cells[face.neighbour].var[👉.w]*face.n̂[3]
+    end
 
     👉.realIter = 1
     👉.realMaxIter = 1000000
@@ -140,8 +160,6 @@ function main()
     while(
         👉.realIter <= 👉.realMaxIter
     )
-
-        println("real-time Step: $(👉.realIter) \t Time: $(👉.time)")
 
 
         # save n-1 step values
@@ -168,12 +186,36 @@ function main()
             cell.var[👉.Hₜⁿ] = cell.var[👉.Hₜ]
         end
 
+        for face in faces_internal
+            face.Uₙⁿ = face.Uₙ
+        end
+
         if Δt_iters[Δt_iters_save] == 👉.realIter
             Δt_iters_save += 1
             👉.Δt = Δt_steps[Δt_iters_save]
         else
             👉.Δt = Δt_steps[Δt_iters_save]
         end
+
+        #=
+        👉.Δt = 1.e10
+        Δx = 👉.Lx / 👉.Nx
+        Δy = 👉.Ly / 👉.Ny
+        Δz = 👉.Lz / 👉.Nz
+        minX = min(Δx,Δy,Δz)
+        for cell in cells
+            U = sqrt(cell.var[👉.u]^2+cell.var[👉.v]^2)
+            👉.Δt = min(👉.Δt, 👉.corantNumber * minX / (U + cell.var[👉.c]))
+           # 👉.Δt = min(👉.Δt, 👉.corantNumber * minX / (U + 1.e-200)
+           # 👉.Δt = max(👉.Δt,1.e-12)
+        end
+        =#
+
+        println("real-time Step: $(👉.realIter) \t Time: $(👉.time) \t time-step: $(👉.Δt)")
+
+
+
+        #face_velocity_before_step!()
         
 
         # timestep from corantNumber
@@ -193,8 +235,15 @@ function main()
         end
         =#
 
+#=
+        for ii in 1:15
 
-        for ii in 1:5
+            reconstruction!(
+                👉,
+                cells,
+                faces,
+                faces_internal,
+                faces_boundary)
 
             resi1 =
             massfraction!(
@@ -222,7 +271,7 @@ function main()
             
 
         end
-
+=#
 
 
 
@@ -233,7 +282,14 @@ function main()
         )
 
 
-            totresi,resi1, resi2, resi3 = 
+            reconstruction!(
+                👉,
+                cells,
+                faces,
+                faces_internal,
+                faces_boundary)
+
+            totresi = 
             coupled!(
                 👉,
                 cells,
@@ -298,9 +354,17 @@ function main()
 
     end
 
-    
 
-end
+
+    save_endfile::String = "save\\" * string(round(👉.time; digits=9)) * ".csv"
+    if Ny == 1
+        oneD_write(👉, cells, save_endfile)
+    else
+        twoD_write(👉, cells, save_endfile)
+    end
+
+    
+end 
 
 
 

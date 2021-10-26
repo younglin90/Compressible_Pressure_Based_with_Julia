@@ -64,12 +64,12 @@ function structured_grid_uniform!(
             ΔS = Δx*Δz
             owner = ijmk
             neighbour = ijk
-            push!(face, mesh.Face(cell[ijk].x, Δy*(j-1), 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+            push!(face, mesh.Face(cell[ijk].x, Δy*(j-1), 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
             n̂ = [1.0, 0.0, 0.0]
             ΔS = Δy*Δz
             owner = imjk
             neighbour = ijk
-            push!(face, mesh.Face(Δx*(i-1), cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+            push!(face, mesh.Face(Δx*(i-1), cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
         end
     end
 
@@ -83,7 +83,7 @@ function structured_grid_uniform!(
         ΔS = Δx*Δz
         owner = ijmk
         neighbour = ijk
-        push!(face, mesh.Face(cell[ijk].x, Δy*(j-1), 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+        push!(face, mesh.Face(cell[ijk].x, Δy*(j-1), 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
     end
 
     for i in 2:👉.Nx
@@ -96,7 +96,7 @@ function structured_grid_uniform!(
         ΔS = Δy*Δz
         owner = imjk
         neighbour = ijk
-        push!(face, mesh.Face(Δx*(i-1), cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+        push!(face, mesh.Face(Δx*(i-1), cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
     end
 
     face_internal_num = length(face)
@@ -116,7 +116,7 @@ function structured_grid_uniform!(
         ΔS = Δy*Δz
         owner = ijk
         neighbour = 0
-        push!(face, mesh.Face(Δx*(i-1), cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+        push!(face, mesh.Face(Δx*(i-1), cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
     end
 
     face_total_left = length(face)
@@ -135,7 +135,7 @@ function structured_grid_uniform!(
         ΔS = Δx*Δz
         owner = ijk
         neighbour = 0
-        push!(face, mesh.Face(cell[ijk].x, Δy*(j-1), 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+        push!(face, mesh.Face(cell[ijk].x, Δy*(j-1), 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
     end
     
     face_total_bottom = length(face)
@@ -154,7 +154,7 @@ function structured_grid_uniform!(
         ΔS = Δy*Δz
         owner = ijk
         neighbour = 0
-        push!(face, mesh.Face(Δx*👉.Nx, cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+        push!(face, mesh.Face(Δx*👉.Nx, cell[ijk].y, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
     end
     
     face_total_right = length(face)
@@ -173,7 +173,7 @@ function structured_grid_uniform!(
         ΔS = Δx*Δz
         owner = ijk
         neighbour = 0
-        push!(face, mesh.Face(cell[ijk].x, Δy*👉.Ny, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], []))
+        push!(face, mesh.Face(cell[ijk].x, Δy*👉.Ny, 0.5*Δz, owner, neighbour, n̂, ΔS, [], [], [], 0.0, 0.0))
     end
     
     face_total_top = length(face)
@@ -195,7 +195,7 @@ function structured_grid_uniform!(
     end
 
     for i in face
-        for j in 1:9
+        for j in 1:41
             push!(i.varₗ,0.0)
             push!(i.varᵣ,0.0)
         end

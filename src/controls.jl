@@ -8,7 +8,10 @@ mutable struct controls
     Lz::Float64
 
     temporal_discretizationScheme::String
-    spatial_discretizationScheme::String
+    spatial_discretizationScheme_p::String
+    spatial_discretizationScheme_U::String
+    spatial_discretizationScheme_T::String
+    spatial_discretizationScheme_Y::String
     
     gravity::Array{Float64}
 

@@ -12,6 +12,9 @@ function massfraction!(
     faces_boundary_right::Vector{mesh.Face}
     )
 
+
+
+
     #A_rows::Vector{Int64} = []
     #A_cols::Vector{Int64} = []
     #A_vals::Vector{Float64} = []
@@ -32,6 +35,8 @@ function massfraction!(
         ρⁿ = cell.var[👉.ρⁿ]
         Y₁ⁿ = cell.var[👉.Y₁ⁿ]
         ∂ρ∂Y₁ = cell.var[👉.∂ρ∂Y₁]
+        ρⁿ⁻¹ = cell.var[👉.ρⁿ⁻¹]
+        Y₁ⁿ⁻¹ = cell.var[👉.Y₁ⁿ⁻¹]
         Ω = cell.Ω
         Δt = 👉.Δt
         
@@ -70,10 +75,51 @@ function massfraction!(
         ∂Δp∂x0[face.owner, 3] += pₙ * face.n̂[3] * face.ΔS / cells[face.owner].Ω
     end
 
+
+
+
+
+
+
+    ∂Y₁∂x = zeros(Float64, length(cells), 3)
+    for face in faces_internal
+        ϕₙ = 0.5 * (cells[face.owner].var[👉.Y₁] + cells[face.neighbour].var[👉.Y₁])
+        ∂Y₁∂x[face.owner, 1] += ϕₙ * face.n̂[1] * face.ΔS / cells[face.owner].Ω
+        ∂Y₁∂x[face.owner, 2] += ϕₙ * face.n̂[2] * face.ΔS / cells[face.owner].Ω
+        ∂Y₁∂x[face.owner, 3] += ϕₙ * face.n̂[3] * face.ΔS / cells[face.owner].Ω
+        ∂Y₁∂x[face.neighbour, 1] -= ϕₙ * face.n̂[1] * face.ΔS / cells[face.neighbour].Ω
+        ∂Y₁∂x[face.neighbour, 2] -= ϕₙ * face.n̂[2] * face.ΔS / cells[face.neighbour].Ω
+        ∂Y₁∂x[face.neighbour, 3] -= ϕₙ * face.n̂[3] * face.ΔS / cells[face.neighbour].Ω
+    end
+    for face in faces_boundary
+        ϕₙ = cells[face.owner].var[👉.Y₁]
+        ∂Y₁∂x[face.owner, 1] += ϕₙ * face.n̂[1] * face.ΔS / cells[face.owner].Ω
+        ∂Y₁∂x[face.owner, 2] += ϕₙ * face.n̂[2] * face.ΔS / cells[face.owner].Ω
+        ∂Y₁∂x[face.owner, 3] += ϕₙ * face.n̂[3] * face.ΔS / cells[face.owner].Ω
+    end
+    if 👉.spatial_discretizationScheme_Y == "upwind"
+        calcUpwind!(👉.Y₁, ∂Y₁∂x, cells, faces_internal)
+    elseif 👉.spatial_discretizationScheme_Y == "central"
+        calcCentral!(👉.Y₁, ∂Y₁∂x, cells, faces_internal)
+    elseif 👉.spatial_discretizationScheme_Y == "quick"
+        calcQUICK!(👉.Y₁, ∂Y₁∂x, cells, faces_internal)
+    elseif 👉.spatial_discretizationScheme_Y == "minmod"
+        calcMinmod!(👉.Y₁, ∂Y₁∂x, cells, faces_internal)
+    elseif 👉.spatial_discretizationScheme_Y == "vanleer"
+        calcVanLeer!(👉.Y₁, ∂Y₁∂x, cells, faces_internal)
+    elseif 👉.spatial_discretizationScheme_Y == "superbee"
+        calcSUPERBEE!(👉.Y₁, ∂Y₁∂x, cells, faces_internal)
+    elseif 👉.spatial_discretizationScheme_Y == "linear"
+        calcLinearInterpolation!(👉.Y₁, ∂Y₁∂x, cells, faces_internal)
+    end
+
+
+
+
     # contruct A matrix  
     # contruct B vector 
     for face in faces_internal
-
+#=
         ρₗ = cells[face.owner].var[👉.ρ]
         ρᵣ = cells[face.neighbour].var[👉.ρ]
         pₗ = cells[face.owner].var[👉.p]
@@ -84,6 +130,22 @@ function massfraction!(
         vᵣ = cells[face.neighbour].var[👉.v]
         ∂ρ∂Y₁ₗ = cells[face.owner].var[👉.∂ρ∂Y₁]
         ∂ρ∂Y₁ᵣ = cells[face.neighbour].var[👉.∂ρ∂Y₁]
+=#
+        pO = cells[face.owner].var[👉.p]
+        pN = cells[face.neighbour].var[👉.p]
+
+        ρₗ = face.varₗ[👉.ρ]
+        ρᵣ = face.varᵣ[👉.ρ]
+        pₗ = face.varₗ[👉.p]
+        pᵣ = face.varᵣ[👉.p]
+        uₗ = face.varₗ[👉.u]
+        uᵣ = face.varᵣ[👉.u]
+        vₗ = face.varₗ[👉.v]
+        vᵣ = face.varᵣ[👉.v]
+        ∂ρ∂Y₁ₗ = face.varₗ[👉.∂ρ∂Y₁]
+        ∂ρ∂Y₁ᵣ = face.varᵣ[👉.∂ρ∂Y₁]
+
+
         Uₙₗ = uₗ * face.n̂[1] + vₗ * face.n̂[2]
         Uₙᵣ = uᵣ * face.n̂[1] + vᵣ * face.n̂[2]
         Uₙ = 0.5 * (Uₙₗ + Uₙᵣ)
@@ -93,35 +155,47 @@ function massfraction!(
         centerᵣ = [cells[face.neighbour].x, cells[face.neighbour].y, cells[face.neighbour].z]
         ΔLR = norm(centerᵣ - centerₗ)
 
-        #invρΔt = (wₗ/ρₗ + wᵣ/ρᵣ) * 👉.Δt
-        invρΔt = 0.5 * (1.0/ρₗ + 1.0/ρᵣ) * 👉.Δt
+        ρˢ = 1.0 / (0.5/ρₗ + 0.5/ρᵣ)
+        #d = 0.5 * (1.0 / (Ap[face.owner]) + 1.0 / (Ap[face.neighbour]) )
+        d̂ = 👉.Δt / ρˢ
+        #d̂ = d / (2.0 + ρˢ / 👉.Δt * d)
+        #if d>1.e9
+        #    d̂ = 👉.Δt / ρˢ
+        #end
         
         # Rhie-Chow
-        Uₙ += 0.5 * 👉.Δt / ρₗ * ∂Δp∂x0[face.owner, 1] * face.n̂[1]
-        Uₙ += 0.5 * 👉.Δt / ρₗ * ∂Δp∂x0[face.owner, 2] * face.n̂[2]
-        #Uₙ += 0.5 * 👉.Δt / ρₗ * ∂Δp∂x0[face.owner, 3] * face.n̂[3]
-        Uₙ += 0.5 * 👉.Δt / ρᵣ * ∂Δp∂x0[face.neighbour, 1] * face.n̂[1]
-        Uₙ += 0.5 * 👉.Δt / ρᵣ * ∂Δp∂x0[face.neighbour, 2] * face.n̂[2]
-        #Uₙ += 0.5 * 👉.Δt / ρᵣ * ∂Δp∂x0[face.neighbour, 3] * face.n̂[3]
-        #=
-        Uₙ += invρΔt * ∂Δp∂x0[face.owner, 1] * face.n̂[1]
-        Uₙ += invρΔt * ∂Δp∂x0[face.owner, 2] * face.n̂[2]
-        Uₙ += invρΔt * ∂Δp∂x0[face.owner, 3] * face.n̂[3]
-        Uₙ += invρΔt * ∂Δp∂x0[face.neighbour, 1] * face.n̂[1]
-        Uₙ += invρΔt * ∂Δp∂x0[face.neighbour, 2] * face.n̂[2]
-        Uₙ += invρΔt * ∂Δp∂x0[face.neighbour, 3] * face.n̂[3]
-        =#
-        Uₙ -= invρΔt * (pᵣ-pₗ) / ΔLR
+        Uₙ += d̂ * ρˢ * 0.5 / ρₗ * ∂Δp∂x0[face.owner, 1] * face.n̂[1]
+        Uₙ += d̂ * ρˢ * 0.5 / ρₗ * ∂Δp∂x0[face.owner, 2] * face.n̂[2]
+        Uₙ += d̂ * ρˢ * 0.5 / ρₗ * ∂Δp∂x0[face.owner, 3] * face.n̂[3]
+        Uₙ += d̂ * ρˢ * 0.5 / ρᵣ * ∂Δp∂x0[face.neighbour, 1] * face.n̂[1]
+        Uₙ += d̂ * ρˢ * 0.5 / ρᵣ * ∂Δp∂x0[face.neighbour, 2] * face.n̂[2]
+        Uₙ += d̂ * ρˢ * 0.5 / ρᵣ * ∂Δp∂x0[face.neighbour, 3] * face.n̂[3]
+        Uₙ -= d̂ * (pN-pO) / ΔLR
+
+        
+        # before step
+        ρₗⁿ = cells[face.owner].var[👉.ρⁿ]
+        ρᵣⁿ = cells[face.neighbour].var[👉.ρⁿ]
+        ρˢⁿ = 1.0 / (0.5/ρₗⁿ + 0.5/ρᵣⁿ)
+        Uₙₗⁿ = cells[face.owner].var[👉.uⁿ] * face.n̂[1] + cells[face.owner].var[👉.vⁿ] * face.n̂[2]
+        Uₙᵣⁿ = cells[face.neighbour].var[👉.uⁿ] * face.n̂[1] + cells[face.neighbour].var[👉.vⁿ] * face.n̂[2]
+        Uₙ += d̂ * ρˢⁿ / 👉.Δt * ( face.Uₙⁿ - 0.5 * (Uₙₗⁿ + Uₙᵣⁿ) )
+        #Uₙ += ( face.Uₙⁿ - 0.5 * (Uₙₗⁿ + Uₙᵣⁿ) )
+        #--------------------
+        # SAVE
+        face.Uₙ = Uₙ
+        #--------------------
+
 
         Wₗ = 0.0
         Wᵣ = 0.0
-        if 👉.spatial_discretizationScheme == "upwind"
+        #if 👉.spatial_discretizationScheme == "upwind"
             Wₗ = 0.5 * (1.0 + sign(Uₙ))
             Wᵣ = 1.0 - Wₗ
-        elseif 👉.spatial_discretizationScheme == "central"
-            Wₗ = 0.5
-            Wᵣ = 1.0 - Wₗ
-        end
+        #elseif 👉.spatial_discretizationScheme == "central"
+        #    Wₗ = 0.5
+        #    Wᵣ = 1.0 - Wₗ
+        #end
         
         ρₙ = Wₗ * ρₗ + Wᵣ * ρᵣ
         uₙ = Wₗ * uₗ + Wᵣ * uᵣ

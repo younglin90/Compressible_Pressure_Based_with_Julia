@@ -17,6 +17,8 @@ mutable struct Face
     points::Vector{Point}
     varₗ::Vector{Float64}
     varᵣ::Vector{Float64}
+    Uₙ::Float64
+    Uₙⁿ::Float64
 end
 
 
